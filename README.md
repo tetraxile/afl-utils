@@ -14,9 +14,9 @@ this repository contains various scripts for interacting with some ActionLibrary
 
 ## Usage
 
-### search
+### afl-search
 
-`usage: ./search <game> <romfs path> <object name> [output file]`
+`usage: ./afl-search <game> <romfs path> <object name> [output file]`
 
 this script searches through all of a game's stages for an object that matches the search criteria.
 
@@ -24,9 +24,9 @@ this script searches through all of a game's stages for an object that matches t
 
 `object name` refers to a `UnitConfigName`.
 
-### copy
+### afl-copy
 
-`usage: ./copy <input file> <output file>`
+`usage: ./afl-copy <input file> <output file>`
 
 this script reads a BYML file and writes it again. not particularly useful unless your name rhymes with schmetraxile.
 

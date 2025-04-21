@@ -7,6 +7,7 @@
 #include <afl/bntx.h>
 #include <afl/byml/reader.h>
 #include <afl/byml/writer.h>
+#include <afl/result.h>
 #include <afl/sarc.h>
 #include <afl/util.h>
 #include <afl/yaz0.h>

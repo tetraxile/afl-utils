@@ -4,10 +4,11 @@
 #include <vector>
 
 #include <afl/byml/reader.h>
+#include <afl/result.h>
 #include <afl/sarc.h>
-#include <afl/yaz0.h>
 #include <afl/types.h>
 #include <afl/util.h>
+#include <afl/yaz0.h>
 
 namespace fs = std::filesystem;
 

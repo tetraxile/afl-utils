@@ -15,9 +15,9 @@ set(COPY_SOURCES src/copy.cpp)
 set(SEARCH_SOURCES src/search.cpp)
 
 add_executable(${PROJECT_NAME} ${MAIN_SOURCES})
-add_executable(search ${SEARCH_SOURCES})
-add_executable(copy ${COPY_SOURCES})
+add_executable(afl-search ${SEARCH_SOURCES})
+add_executable(afl-copy ${COPY_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE afl)
-target_link_libraries(search PRIVATE afl)
-target_link_libraries(copy PRIVATE afl)
+target_link_libraries(afl-search PRIVATE afl)
+target_link_libraries(afl-copy PRIVATE afl)
