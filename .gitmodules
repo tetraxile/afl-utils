@@ -1,0 +1,3 @@
+[submodule "lib/afl"]
+	path = lib/afl
+	url = https://github.com/tetraxile/afl
