@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdio>
 #include <filesystem>
 #include <set>
@@ -27,6 +28,7 @@ struct Result {
     u32 scenarioIdx;
     std::string itemList;
     std::string objId;
+    Vector3f trans;
 };
 
 bool endsWith(const std::string& fullString, const std::string& ending) {
@@ -59,7 +61,7 @@ result_t SearchEngine::loadStage(std::vector<u8>& bymlContents, const fs::path& 
     std::string stageName = stagePath.filename().replace_extension();
 
     std::vector<u8> szsContents;
-    r = util::read_file(szsContents, stagePath);
+    r = util::readFile(szsContents, stagePath);
     if (r) return r;
 
     std::vector<u8> decompressed;
@@ -78,7 +80,26 @@ result_t SearchEngine::loadStage(std::vector<u8>& bymlContents, const fs::path& 
     else
         return util::Error::FileNotFound;
 
-    r = sarc.get_file_data(bymlContents, stageName + suffix);
+    r = sarc.getFileData(bymlContents, stageName + suffix);
+    if (r) return r;
+
+    return 0;
+}
+
+result_t readVec3f(Vector3f* out, const byml::Reader& reader) {
+    result_t r;
+
+    byml::Reader translate;
+    r = reader.getContainerByKey(&translate, "Translate");
+    if (r) return r;
+
+    r = translate.getF32ByKey(&out->x, "X");
+    if (r) return r;
+
+    r = translate.getF32ByKey(&out->y, "Y");
+    if (r) return r;
+
+    r = translate.getF32ByKey(&out->z, "Z");
     if (r) return r;
 
     return 0;
@@ -87,31 +108,47 @@ result_t SearchEngine::loadStage(std::vector<u8>& bymlContents, const fs::path& 
 result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
     result_t r;
 
-    for (u32 listIdx = 0; listIdx < scenario.get_size(); listIdx++) {
+    for (u32 listIdx = 0; listIdx < scenario.getSize(); listIdx++) {
         u32 keyIdx;
-        scenario.get_key_by_idx(&keyIdx, listIdx);
-        std::string listName = scenario.get_hash_string(keyIdx);
+        scenario.getKeyByIdx(&keyIdx, listIdx);
+        std::string listName = scenario.getHashString(keyIdx);
         mCurItemList = listName;
 
-        if (util::is_equal(listName, "FilePath")) continue;
+        if (util::isEqual(listName, "FilePath")) continue;
 
         byml::Reader itemList;
-        scenario.get_container_by_idx(&itemList, listIdx);
+        scenario.getContainerByIdx(&itemList, listIdx);
 
-        for (u32 itemIdx = 0; itemIdx < itemList.get_size(); itemIdx++) {
+        for (u32 itemIdx = 0; itemIdx < itemList.getSize(); itemIdx++) {
             byml::Reader item;
-            itemList.get_container_by_idx(&item, itemIdx);
+            itemList.getContainerByIdx(&item, itemIdx);
 
-            std::string itemName;
-            r = item.get_string_by_key(&itemName, "UnitConfigName");
+            std::string unitConfigName;
+            r = item.getStringByKey(&unitConfigName, "UnitConfigName");
             if (r) return r;
 
-            if (util::is_equal(itemName, mQuery.name)) {
-                std::string objId;
-                r = item.get_string_by_key(&objId, "Id");
-                if (r) return r;
+            std::string objId;
+            r = item.getStringByKey(&objId, "Id");
+            if (r) return r;
 
-                Result result = { mCurStageName, mCurScenarioIdx, mCurItemList, objId };
+            byml::Reader unitConfig;
+            r = item.getContainerByKey(&unitConfig, "UnitConfig");
+            if (r) return r;
+
+            std::string parameterConfigName;
+            r = unitConfig.getStringByKey(&parameterConfigName, "ParameterConfigName");
+            if (r) return r;
+
+            std::string modelName;
+            bool hasModelName = item.tryGetStringByKey(&modelName, "ModelName");
+
+            if (util::isEqual(unitConfigName, mQuery.name) ||
+                util::isEqual(parameterConfigName, mQuery.name) ||
+                (hasModelName && util::isEqual(modelName, mQuery.name))) {
+                Vector3f trans;
+                readVec3f(&trans, item);
+
+                Result result = { mCurStageName, mCurScenarioIdx, mCurItemList, objId, trans };
                 mResults.push_back(result);
             }
         }
@@ -132,16 +169,17 @@ result_t SearchEngine::searchStage(const fs::path& stagePath) {
     r = stageReader.init(&bymlContents[0]);
     if (r) return r;
 
-    if (!stageReader.is_exist_string_value(mQuery.name)) return 0;
+    if (!stageReader.isExistStringValue(mQuery.name)) return 0;
 
     if (mGame == Game::SMO) {
-        for (u32 scenarioIdx = 0; scenarioIdx < stageReader.get_size(); scenarioIdx++) {
+        for (u32 scenarioIdx = 0; scenarioIdx < stageReader.getSize(); scenarioIdx++) {
             mCurScenarioIdx = scenarioIdx;
 
             byml::Reader scenario;
-            stageReader.get_container_by_idx(&scenario, scenarioIdx);
+            stageReader.getContainerByIdx(&scenario, scenarioIdx);
 
-            searchScenario(scenario);
+            r = searchScenario(scenario);
+            if (r) return r;
         }
     } else if (mGame == Game::SM3DW) {
         searchScenario(stageReader);
@@ -213,9 +251,9 @@ s32 main(s32 argc, char** argv) {
     // std::string outPath = "./result.txt";
 
     Game game;
-    if (util::is_equal(gameName, "smo"))
+    if (util::isEqual(gameName, "smo"))
         game = Game::SMO;
-    else if (util::is_equal(gameName, "3dw"))
+    else if (util::isEqual(gameName, "3dw"))
         game = Game::SM3DW;
     else {
         fprintf(stderr, "error: invalid game name (expected \"smo\" or \"3dw\")");
@@ -232,5 +270,5 @@ s32 main(s32 argc, char** argv) {
 	result_t r = engine.searchAllStages(romfsPath);
     engine.saveResults(outPath);
 
-	if (r) fprintf(stderr, "error %x: %s\n", r, result_to_string(r));
+	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
 }

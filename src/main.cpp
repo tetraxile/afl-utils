@@ -31,105 +31,105 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 	// std::string indent(level, '\t');
 	std::string out;
 
-	if (node.get_type() == byml::NodeType::Array) {
+	if (node.getType() == byml::NodeType::Array) {
 		out += "[";
-		for (u32 i = 0; i < node.get_size(); i++) {
+		for (u32 i = 0; i < node.getSize(); i++) {
 			byml::NodeType childType;
-			node.get_type_by_idx(&childType, i);
+			node.getTypeByIdx(&childType, i);
 			if (childType == byml::NodeType::Hash) {
 				byml::Reader container;
-				node.get_container_by_idx(&container, i);
+				node.getContainerByIdx(&container, i);
 				out += print_byml(container, level + 1);
 			} else if (childType == byml::NodeType::String) {
 				std::string str;
-				node.get_string_by_idx(&str, i);
+				node.getStringByIdx(&str, i);
 				out += std::format("\"{}\"", str);
 			} else if (childType == byml::NodeType::Bool) {
 				bool value;
-				node.get_bool_by_idx(&value, i);
+				node.getBoolByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::S32) {
 				s32 value;
-				node.get_s32_by_idx(&value, i);
+				node.getS32ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::U32) {
 				u32 value;
-				node.get_u32_by_idx(&value, i);
+				node.getU32ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::F32) {
 				f32 value;
-				node.get_f32_by_idx(&value, i);
+				node.getF32ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::S64) {
 				s64 value;
-				node.get_s64_by_idx(&value, i);
+				node.getS64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::U64) {
 				u64 value;
-				node.get_u64_by_idx(&value, i);
+				node.getU64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::F64) {
 				f64 value;
-				node.get_f64_by_idx(&value, i);
+				node.getF64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::Bool) {
 				out += "null";
 			} else {
 				out += std::format("{:x}", (u8)childType);
 			}
-			if (i != node.get_size() - 1) out += ", ";
+			if (i != node.getSize() - 1) out += ", ";
 		}
 		out += "]";
-	} else if (node.get_type() == byml::NodeType::Hash) {
+	} else if (node.getType() == byml::NodeType::Hash) {
 		out += "{";
-		for (u32 i = 0; i < node.get_size(); i++) {
+		for (u32 i = 0; i < node.getSize(); i++) {
 			byml::NodeType childType;
-			node.get_type_by_idx(&childType, i);
+			node.getTypeByIdx(&childType, i);
 			u32 keyIdx;
-			node.get_key_by_idx(&keyIdx, i);
-			out += std::format("\"{}\": ", node.get_hash_string(keyIdx));
+			node.getKeyByIdx(&keyIdx, i);
+			out += std::format("\"{}\": ", node.getHashString(keyIdx));
 			if (childType == byml::NodeType::Hash) {
 				byml::Reader container;
-				node.get_container_by_idx(&container, i);
+				node.getContainerByIdx(&container, i);
 				out += print_byml(container, level + 1);
 			} else if (childType == byml::NodeType::String) {
 				std::string str;
-				node.get_string_by_idx(&str, i);
+				node.getStringByIdx(&str, i);
 				out += std::format("\"{}\"", str);
 			} else if (childType == byml::NodeType::Bool) {
 				bool value;
-				node.get_bool_by_idx(&value, i);
+				node.getBoolByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::S32) {
 				s32 value;
-				node.get_s32_by_idx(&value, i);
+				node.getS32ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::U32) {
 				u32 value;
-				node.get_u32_by_idx(&value, i);
+				node.getU32ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::F32) {
 				f32 value;
-				node.get_f32_by_idx(&value, i);
+				node.getF32ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::S64) {
 				s64 value;
-				node.get_s64_by_idx(&value, i);
+				node.getS64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::U64) {
 				u64 value;
-				node.get_u64_by_idx(&value, i);
+				node.getU64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::F64) {
 				f64 value;
-				node.get_f64_by_idx(&value, i);
+				node.getF64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::Bool) {
 				out += "null";
 			} else {
 				out += std::format("{:x}", (u8)childType);
 			}
-			if (i != node.get_size() - 1) out += ", ";
+			if (i != node.getSize() - 1) out += ", ";
 		}
 		out += "}";
 	}
@@ -146,19 +146,19 @@ s32 main(s32 argc, char* argv[]) {
 	}
 
 	Format format;
-	if (util::is_equal(argv[1], "yaz0"))
+	if (util::isEqual(argv[1], "yaz0"))
 		format = Format::Yaz0;
-	else if (util::is_equal(argv[1], "sarc"))
+	else if (util::isEqual(argv[1], "sarc"))
 		format = Format::SARC;
-	else if (util::is_equal(argv[1], "szs"))
+	else if (util::isEqual(argv[1], "szs"))
 		format = Format::SZS;
-	else if (util::is_equal(argv[1], "bffnt"))
+	else if (util::isEqual(argv[1], "bffnt"))
 		format = Format::BFFNT;
-	else if (util::is_equal(argv[1], "bntx"))
+	else if (util::isEqual(argv[1], "bntx"))
 		format = Format::BNTX;
-	else if (util::is_equal(argv[1], "byml"))
+	else if (util::isEqual(argv[1], "byml"))
 		format = Format::BYML;
-	else if (util::is_equal(argv[1], "bfres"))
+	else if (util::isEqual(argv[1], "bfres"))
 		format = Format::BFRES;
 	else {
 		fprintf(stderr, "error: unrecognized format '%s'\n", argv[1]);
@@ -166,9 +166,9 @@ s32 main(s32 argc, char* argv[]) {
 	}
 
 	Option option;
-	if (util::is_equal(argv[2], "read") || util::is_equal(argv[2], "r"))
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r"))
 		option = Option::Read;
-	else if (util::is_equal(argv[2], "write") || util::is_equal(argv[2], "w"))
+	else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w"))
 		option = Option::Write;
 	else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
@@ -188,7 +188,7 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			std::vector<u8> outputBuffer;
@@ -211,13 +211,13 @@ s32 main(s32 argc, char* argv[]) {
 			u32 alignment = argc > 5 ? atoi(argv[5]) : 0x80;
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			std::vector<u8> outputBuffer;
 			yaz0::compress(outputBuffer, fileContents, alignment);
 
-			util::write_file(argv[4], outputBuffer);
+			util::writeFile(argv[4], outputBuffer);
 		}
 
 		break;
@@ -229,14 +229,14 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			SARC sarc(fileContents);
 			r = sarc.read();
 			if (r) break;
 
-			r = sarc.save_all(argv[4]);
+			r = sarc.saveAll(argv[4]);
 			if (r) break;
 		} else {
 			if (argc < 5) {
@@ -254,7 +254,7 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			std::vector<u8> decompressed;
@@ -265,7 +265,7 @@ s32 main(s32 argc, char* argv[]) {
 			r = sarc.read();
 			if (r) break;
 
-			r = sarc.save_all(argv[4]);
+			r = sarc.saveAll(argv[4]);
 			if (r) break;
 		}
 
@@ -278,7 +278,7 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			BFFNT bffnt(fileContents);
@@ -295,7 +295,7 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			BNTX bntx(fileContents);
@@ -312,7 +312,7 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			byml::Reader byml;
@@ -337,7 +337,7 @@ s32 main(s32 argc, char* argv[]) {
 			}
 
 			std::vector<u8> fileContents;
-			r = util::read_file(fileContents, argv[3]);
+			r = util::readFile(fileContents, argv[3]);
 			if (r) break;
 
 			BFRES bfres(fileContents);
@@ -354,7 +354,7 @@ s32 main(s32 argc, char* argv[]) {
 		break;
 	}
 
-	if (r) fprintf(stderr, "error %x: %s\n", r, result_to_string(r));
+	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
 
 	return 0;
 }
