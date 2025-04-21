@@ -22,7 +22,7 @@ this script searches through all of a game's stages for an object that matches t
 
 `game` can currently only be `smo` and `3dw`, for Odyssey and 3D World respectively.
 
-`object name` refers to a `UnitConfigName`.
+`object name` matches a `UnitConfigName`, `ModelName`, or `ParameterConfigName`.
 
 ### afl-copy
 
