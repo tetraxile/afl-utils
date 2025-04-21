@@ -8,8 +8,8 @@ this repository contains various scripts for interacting with some ActionLibrary
 * `mkdir build`
 * `cd build`
 * `cmake ..`
-    * `make search`
-    * `make copy`
+    * `make afl-search`
+    * `make afl-copy`
     * `make afl-utils`
 
 ## Usage

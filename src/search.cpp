@@ -76,7 +76,7 @@ result_t SearchEngine::loadStage(std::vector<u8>& bymlContents, const fs::path& 
     else if (mGame == Game::SM3DW)
         suffix = "Map.byml";
     else
-        return Error::FileNotFound;
+        return util::Error::FileNotFound;
 
     r = sarc.get_file_data(bymlContents, stageName + suffix);
     if (r) return r;
@@ -154,7 +154,7 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
     result_t r;
 
     const fs::path stageDataPath = romfsPath / "StageData";
-    if (!fs::is_directory(stageDataPath)) return Error::DirNotFound;
+    if (!fs::is_directory(stageDataPath)) return util::Error::DirNotFound;
 
     std::string stageSuffix;
     if (mGame == Game::SMO)
@@ -209,7 +209,7 @@ s32 main(s32 argc, char** argv) {
     std::string gameName = argv[1];
     std::string romfsPath = argv[2];
     std::string objectName = argv[3];
-    std::string outPath = argc < 3 ? "results.txt" : argv[4];
+    std::string outPath = argc < 5 ? "results.txt" : argv[4];
     // std::string outPath = "./result.txt";
 
     Game game;
