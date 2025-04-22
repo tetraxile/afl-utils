@@ -96,7 +96,7 @@ struct SearchEngine {
 result_t SearchEngine::loadStage(std::vector<u8>& bymlContents, const fs::path& stagePath) {
 	result_t r;
 
-	std::string stageName = stagePath.filename().replace_extension();
+	std::string stageName = stagePath.filename().replace_extension().string();
 
 	std::vector<u8> szsContents;
 	r = util::readFile(szsContents, stagePath);
@@ -210,7 +210,7 @@ result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 result_t SearchEngine::searchStage(const fs::path& stagePath) {
 	result_t r;
 
-	std::string stageName = stagePath.filename().replace_extension();
+	std::string stageName = stagePath.filename().replace_extension().string();
 
 	std::vector<u8> bymlContents;
 	loadStage(bymlContents, stagePath);
@@ -253,7 +253,7 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 	// sort stage paths
 	std::set<fs::path> stagePaths;
 	for (const auto& entry : fs::directory_iterator(stageDataPath)) {
-		if (!endsWith(entry.path().filename(), stageSuffix)) continue;
+		if (!endsWith(entry.path().filename().string(), stageSuffix)) continue;
 		stagePaths.insert(entry.path());
 	}
 
@@ -274,7 +274,7 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 }
 
 void SearchEngine::saveResults(const fs::path& outPath) const {
-	FILE* f = fopen(outPath.c_str(), "w");
+	FILE* f = fopen(outPath.string().c_str(), "w");
 
 	if (mGame == Game::SMO) {
 		std::unordered_set<Result> collapsedResults;
