@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. && cmake -G "Unix Makefiles" --build . --target ALL_BUILD --config Release -- -j $(nproc)
+          cmake .. && cmake -G "Unix Makefiles" --build . --target ALL_BUILD --config Release
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
