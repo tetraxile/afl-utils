@@ -321,6 +321,8 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 	}
 
 	fclose(f);
+
+	printf("saved results to %s\n", outPath.string().c_str());
 }
 
 s32 main(s32 argc, char** argv) {
@@ -349,7 +351,8 @@ s32 main(s32 argc, char** argv) {
 	SearchEngine engine(game, query);
 
 	result_t r = engine.searchAllStages(romfsPath);
-	engine.saveResults(outPath);
 
 	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
+
+	engine.saveResults(outPath);
 }

@@ -48,3 +48,7 @@ usage: ./afl-utils <format> <option>
 ```
 
 various readers/writers for different file formats. some of these don't do much
+
+## License
+
+The licenses found in the [LICENSE](LICENSE) file apply only to the source files in the [src/](src) directory.
