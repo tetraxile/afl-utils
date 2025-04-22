@@ -1,12 +1,11 @@
-#include <cstdio>
-#include <format>
-#include <vector>
-
 #include <afl/byml/common.h>
 #include <afl/byml/reader.h>
 #include <afl/byml/writer.h>
 #include <afl/types.h>
 #include <afl/util.h>
+#include <cstdio>
+#include <format>
+#include <vector>
 
 void copy_byml_r(byml::Writer& writer, const byml::Reader& node) {
 	if (node.getType() == byml::NodeType::Array) {
@@ -136,7 +135,8 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 	if (node.getType() == byml::NodeType::Array) {
 		out += "[\n";
 		for (u32 i = 0; i < node.getSize(); i++) {
-			for (s32 j = 0; j < level; j++) out += "\t";
+			for (s32 j = 0; j < level; j++)
+				out += "\t";
 			byml::NodeType childType;
 			node.getTypeByIdx(&childType, i);
 			if (childType == byml::NodeType::Hash) {
@@ -191,12 +191,14 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 			if (i != node.getSize() - 1) out += ", ";
 			out += "\n";
 		}
-		for (s32 j = 0; j < level - 1; j++) out += "\t";
+		for (s32 j = 0; j < level - 1; j++)
+			out += "\t";
 		out += "]";
 	} else if (node.getType() == byml::NodeType::Hash) {
 		out += "{\n";
 		for (u32 i = 0; i < node.getSize(); i++) {
-			for (s32 j = 0; j < level; j++) out += "\t";
+			for (s32 j = 0; j < level; j++)
+				out += "\t";
 			byml::NodeType childType;
 			node.getTypeByIdx(&childType, i);
 			u32 keyIdx;
@@ -254,7 +256,8 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 			if (i != node.getSize() - 1) out += ", ";
 			out += "\n";
 		}
-		for (s32 j = 0; j < level - 1; j++) out += "\t";
+		for (s32 j = 0; j < level - 1; j++)
+			out += "\t";
 		out += "}";
 	}
 

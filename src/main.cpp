@@ -1,7 +1,3 @@
-#include <cstdio>
-#include <format>
-#include <fstream>
-
 #include <afl/bffnt.h>
 #include <afl/bfres.h>
 #include <afl/bntx.h>
@@ -11,6 +7,9 @@
 #include <afl/sarc.h>
 #include <afl/util.h>
 #include <afl/yaz0.h>
+#include <cstdio>
+#include <format>
+#include <fstream>
 
 enum class Format {
 	Yaz0,
