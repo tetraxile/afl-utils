@@ -4,10 +4,13 @@ project(afl-utils)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-add_compile_options(-O2 -Wall -Werror -Wextra -Wno-unused-variable)
-
-if (MINGW)
-    add_compile_options(-static -static-libgcc -static-libstdc++)
+if (MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-O2 -Wall -Werror -Wextra -Wno-unused-variable)
+    if (WIN32)
+        add_compile_options(-static -static-libgcc -static-libstdc++)
+    endif()
 endif()
 
 add_subdirectory(lib/afl)
