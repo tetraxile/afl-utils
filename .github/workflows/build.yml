@@ -44,7 +44,6 @@ jobs:
         with:
           name: win-build
           path: |
-            build/afl-search.exe
-            build/afl-utils.exe
-            build/afl-copy.exe
-            
+            build/Release/afl-search.exe
+            build/Release/afl-utils.exe
+            build/Release/afl-copy.exe
