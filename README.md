@@ -4,13 +4,22 @@ this repository contains various scripts for interacting with some ActionLibrary
 
 ## Building
 
+There is a workflow that uploads automatic builds [here](https://github.com/tetraxile/afl-utils/actions/workflows/build.yml) after every commit.
+
+### Linux
+
 * `git submodule update --init --recursive`
 * `mkdir build`
 * `cd build`
 * `cmake ..`
-    * `make afl-search`
-    * `make afl-copy`
-    * `make afl-utils`
+* `make`
+
+### Windows
+
+* `git submodule update --init --recursive`
+* `mkdir build`
+* `cd build`
+* `cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release`
 
 ## Usage
 

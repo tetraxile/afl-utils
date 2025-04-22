@@ -269,8 +269,6 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 		if (r) return r;
 	}
 
-	printf("found %zu matches\n", mResults.size());
-
 	return 0;
 }
 
@@ -286,7 +284,7 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 				collapsedResults.insert(result);
 		}
 
-		printf("collapsed: %zu\n", collapsedResults.size());
+		printf("found %zu matches\n", collapsedResults.size());
 
 		std::map<std::string, std::vector<Result>> stages;
 		for (const auto& result : collapsedResults) {
@@ -313,6 +311,8 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 			}
 		}
 	} else if (mGame == Game::SM3DW) {
+		printf("found %zu matches\n", mResults.size());
+
 		for (const Result& result : mResults)
 			fprintf(
 				f, "%s\t%s\t%s\n", result.stageName.c_str(), result.itemList.c_str(),
