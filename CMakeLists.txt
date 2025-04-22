@@ -6,6 +6,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_compile_options(-O2 -Wall -Werror -Wextra -Wno-unused-variable)
 
+if (WIN32)
+    add_compile_options(-static -static-libgcc -static-libstdc++)
+endif()
+
 add_subdirectory(lib/afl)
 
 include_directories(lib/afl/include)
