@@ -5,6 +5,7 @@
 #include <afl/util.h>
 #include <afl/vector.h>
 #include <afl/yaz0.h>
+#include <array>
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
