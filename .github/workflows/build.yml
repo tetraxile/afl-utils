@@ -38,7 +38,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. && cmake --build . --target all -j $(nproc)
+          cmake .. && cmake --build . --target ALL_BUILD -j $(nproc)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
