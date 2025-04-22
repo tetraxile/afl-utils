@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <format>
 #include <vector>
 
 #include <afl/byml/common.h>
