@@ -20,7 +20,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux/build
+          name: linux-build
           path: |
             build/afl-search
             build/afl-utils
@@ -42,7 +42,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: win/build
+          name: win-build
           path: |
             build/afl-search.exe
             build/afl-utils.exe
