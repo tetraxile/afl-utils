@@ -25,26 +25,3 @@ jobs:
             build/afl-search
             build/afl-utils
             build/afl-copy
-  
-  build-windows:
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Build
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-          make -j $(nproc)
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build
-          path: |
-            build/afl-search.exe
-            build/afl-utils.exe
-            build/afl-copy.exe
