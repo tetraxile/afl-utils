@@ -20,7 +20,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build
+          name: linux/build
           path: |
             build/afl-search
             build/afl-utils
@@ -40,9 +40,9 @@ jobs:
           cd build
           cmake -G "Unix Makefiles" -B . -S .. && make
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: build
+          name: win/build
           path: |
             build/afl-search.exe
             build/afl-utils.exe
