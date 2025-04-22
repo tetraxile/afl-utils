@@ -27,7 +27,7 @@ jobs:
             build/afl-copy
   
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2025
 
     steps:
       - name: Checkout
