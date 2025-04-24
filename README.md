@@ -25,7 +25,14 @@ There is a workflow that uploads automatic builds [here](https://github.com/tetr
 
 ### afl-search
 
-`usage: ./afl-search <game> <romfs path> <object name> [output file]`
+```
+usage: ./afl-search [game] [options...]
+
+options:
+	-r, --romfs    path to game's romfs
+	-n, --name     name of object to search for
+	-o, --output   path to output file
+```
 
 this script searches through all of a game's stages for an object that matches the search criteria.
 
@@ -43,8 +50,8 @@ this script reads a BYML file and writes it again. not particularly useful unles
 
 ```
 usage: ./afl-utils <format> <option>
-        formats: yaz0, sarc, szs, bffnt, bntx, byml, bfres
-        options: read, r, write, w
+	formats: yaz0, sarc, szs, bffnt, bntx, byml, bfres
+	options: read, r, write, w
 ```
 
 various readers/writers for different file formats. some of these don't do much

@@ -9,7 +9,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "CLI11/CLI11.hpp"
 #include "afl/byml/reader.h"
 #include "afl/result.h"
 #include "afl/sarc.h"
@@ -17,6 +16,7 @@
 #include "afl/util.h"
 #include "afl/vector.h"
 #include "afl/yaz0.h"
+#include "clipp/clipp.h"
 #include "config.h"
 #include "mini/ini.h"
 
@@ -333,10 +333,7 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 }
 
 s32 main(s32 argc, char** argv) {
-	CLI::App app { "app description" };
-	argv = app.ensure_utf8(argv);
-
-	generateDefaultConfig();
+	using namespace clipp;
 
 	mINI::INIFile configFile(getConfigPath());
 	mINI::INIStructure ini;
@@ -346,20 +343,29 @@ s32 main(s32 argc, char** argv) {
 	std::string gameName;
 	std::string romfsPath;
 	std::string objectName;
-	std::string outPath;
+	std::string outPath = "results.txt";
 
-	app.add_option("game", gameName, "one of \"smo\" or \"3dw\"")
-		->check([](const std::string& input) {
-			if (!util::isEqual(input, "smo") && !util::isEqual(input, "3dw"))
-				throw CLI::ValidationError("must be one of \"smo\" or \"3dw\"");
-			return "";
-		});
+	// clang-format off
 
-	app.add_option("-r,--romfs", romfsPath, "path to game's ROMFS")->check(CLI::ExistingDirectory);
-	app.add_option("-n,--name", objectName, "name of object to search for");
-	app.add_option("-o,--output", outPath, "path to output file")->default_val("results.txt");
+	bool isShowHelp = false;
+	auto cli = (
+		opt_value("game", gameName).doc("one of \"smo\" or \"3dw\""),
+		option("-r", "--romfs").doc("path to game's romfs") & value("romfs path", romfsPath),
+		option("-n", "--name").doc("name of object to search for") & value("name", objectName),
+	    option("-o", "--output").doc("path to output file (default: results.txt)") & value("outfile", outPath),
+	    option("-h", "--help").set(isShowHelp).doc("show this screen")
+	);
 
-	CLI11_PARSE(app, argc, argv);
+	// clang-format on
+
+	if (!parse(argc, argv, cli) || isShowHelp) {
+		auto fmt = doc_formatting {}.first_column(2).doc_column(20);
+
+		std::cout << "usage:\n"
+				  << usage_lines(cli, argv[0], fmt) << "\n\noptions:\n"
+				  << documentation(cli, fmt) << std::endl;
+		return 1;
+	}
 
 	if (gameName.empty()) gameName = ini["default"]["game"];
 	if (gameName.empty()) {
@@ -387,6 +393,11 @@ s32 main(s32 argc, char** argv) {
 		printf("object name: ");
 		std::getline(std::cin, objectName);
 	}
+
+	printf("game name: %s\n", gameName.c_str());
+	printf("romfs path: %s\n", romfsPath.c_str());
+	printf("object name: %s\n", objectName.c_str());
+	printf("out path: %s\n", outPath.c_str());
 
 	Query query = { .name = objectName, .isRecurse = false };
 

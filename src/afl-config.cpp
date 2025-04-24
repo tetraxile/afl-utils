@@ -1,50 +1,59 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <string>
 
-#include "CLI11/CLI11.hpp"
 #include "afl/types.h"
 #include "afl/util.h"
+#include "clipp/clipp.h"
 #include "config.h"
 #include "mini/ini.h"
 
 s32 main(s32 argc, char** argv) {
-	CLI::App app { "app description" };
-	argv = app.ensure_utf8(argv);
-	app.require_subcommand(1);
+	using namespace clipp;
 
 	std::string gameName;
 	std::string romfsPath;
 
-	CLI::App* romfs = app.add_subcommand("romfs", "set ROMFS path of a game");
-	{
-		romfs->add_option("game", gameName, "one of \"smo\" or \"3dw\"")
-			->required()
-			->check([](const std::string& input) {
-				if (!util::isEqual(input, "smo") && !util::isEqual(input, "3dw"))
-					throw CLI::ValidationError("must be one of \"smo\" or \"3dw\"");
-				return "";
-			});
+	// clang-format off
 
-		romfs->add_option("romfs_path", romfsPath, "path to game's ROMFS directory")
-			->required()
-			->check(CLI::ExistingDirectory);
+	enum class Mode { none, help, romfs, defaultGame };
+	Mode mode;
+
+	auto isGameName = [](const std::string& arg) { return util::isEqual(arg, "smo") || util::isEqual(arg, "3dw"); };
+
+	auto romfsMode = (
+		command("romfs").set(mode, Mode::romfs),
+		value(isGameName, "game", gameName).doc("one of \"smo\" or \"3dw\""),
+		value("romfs path", romfsPath).doc("path to game's romfs directory")
+	);
+
+	auto defaultMode = (
+		command("default_game").set(mode, Mode::defaultGame),
+		value(isGameName, "game", gameName).doc("one of \"smo\" or \"3dw\"")
+	);
+
+	auto cli = (
+		(romfsMode | defaultMode),
+	    option("-h", "--help").set(mode, Mode::help).doc("show this screen")
+	);
+
+	// clang-format on
+
+	if (!parse(argc, argv, cli) || (mode == Mode::help)) {
+		auto fmt = doc_formatting {}.first_column(2).doc_column(20);
+
+		std::cout << "usage:\n"
+				  << usage_lines(cli, argv[0], fmt) << "\n\noptions:\n"
+				  << documentation(cli, fmt) << std::endl;
+		return 1;
 	}
 
-	CLI::App* defaultGame =
-		app.add_subcommand("default_game", "set the default game for scripts to use");
-	{
-		defaultGame->add_option("game", gameName, "one of \"smo\" or \"3dw\"")
-			->required()
-			->check([](const std::string& input) {
-				if (!util::isEqual(input, "smo") && !util::isEqual(input, "3dw"))
-					throw CLI::ValidationError("must be one of \"smo\" or \"3dw\"");
-				return "";
-			});
+	if (mode == Mode::romfs && !fs::is_directory(romfsPath)) {
+		fprintf(stderr, "error: romfs path not found\n");
+		return 1;
 	}
-
-	CLI11_PARSE(app, argc, argv);
 
 	generateDefaultConfig();
 
@@ -57,10 +66,10 @@ s32 main(s32 argc, char** argv) {
 		return 1;
 	}
 
-	if (romfs->parsed()) {
-		printf("setting ROMFS path to %s\n", romfsPath.c_str());
+	if (mode == Mode::romfs) {
+		printf("setting romfs path to %s\n", romfsPath.c_str());
 		ini["romfs"][gameName] = romfsPath;
-	} else if (defaultGame->parsed()) {
+	} else if (mode == Mode::defaultGame) {
 		printf("setting default game to %s\n", gameName.c_str());
 		ini["default"]["game"] = gameName;
 	}
