@@ -49,6 +49,21 @@ usage: ./afl-utils <format> <option>
 
 various readers/writers for different file formats. some of these don't do much
 
+### afl-config
+
+```
+usage: ./afl-config <subcommand> <args...>
+
+./afl-config romfs <game> <romfs path>
+```
+
+set config options for the other scripts to use
+
 ## License
 
 The licenses found in the [LICENSE](LICENSE) file apply only to the source files in the [src/](src) directory.
+
+## Credits
+
+* [mINI](https://github.com/metayeti/mINI) for .ini file parsing
+* [CLI11](https://github.com/CLIUtils/CLI11) for command line argument parsing
