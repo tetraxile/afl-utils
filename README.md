@@ -73,4 +73,4 @@ The licenses found in the [LICENSE](LICENSE) file apply only to the source files
 ## Credits
 
 * [mINI](https://github.com/metayeti/mINI) for .ini file parsing
-* [CLI11](https://github.com/CLIUtils/CLI11) for command line argument parsing
+* [clipp](https://github.com/muellan/clipp) for command line argument parsing
