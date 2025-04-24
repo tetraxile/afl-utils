@@ -1,10 +1,3 @@
-#include <afl/byml/reader.h>
-#include <afl/result.h>
-#include <afl/sarc.h>
-#include <afl/types.h>
-#include <afl/util.h>
-#include <afl/vector.h>
-#include <afl/yaz0.h>
 #include <array>
 #include <cassert>
 #include <cstdio>
@@ -14,6 +7,17 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#include "CLI11/CLI11.hpp"
+#include "afl/byml/reader.h"
+#include "afl/result.h"
+#include "afl/sarc.h"
+#include "afl/types.h"
+#include "afl/util.h"
+#include "afl/vector.h"
+#include "afl/yaz0.h"
+#include "config.h"
+#include "mini/ini.h"
 
 namespace fs = std::filesystem;
 
@@ -326,15 +330,40 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 }
 
 s32 main(s32 argc, char** argv) {
-	if (argc < 4) {
-		fprintf(stderr, "usage: %s <game> <romfs path> <object name> [output file]\n", argv[0]);
+	CLI::App app { "app description" };
+	argv = app.ensure_utf8(argv);
+
+	generateDefaultConfig();
+
+	mINI::INIFile configFile(getConfigPath());
+	mINI::INIStructure ini;
+	bool readSuccess = configFile.read(ini);
+	if (!readSuccess) generateDefaultConfig();
+
+	std::string gameName;
+	std::string romfsPath;
+	std::string objectName;
+	std::string outPath;
+
+	app.add_option("game", gameName, "one of \"smo\" or \"3dw\"")
+		->required()
+		->check([](const std::string& input) {
+			if (!util::isEqual(input, "smo") && !util::isEqual(input, "3dw"))
+				throw CLI::ValidationError("must be one of \"smo\" or \"3dw\"");
+			return "";
+		});
+
+	app.add_option("-r,--romfs", romfsPath, "path to game's ROMFS")->check(CLI::ExistingDirectory);
+	app.add_option("-n,--name", objectName, "name of object to search for")->required();
+	app.add_option("-o,--output", outPath, "path to output file")->default_val("results.txt");
+
+	CLI11_PARSE(app, argc, argv);
+
+	if (romfsPath.empty()) romfsPath = ini["romfs"][gameName];
+	if (romfsPath.empty()) {
+		fprintf(stderr, "error: romfs path not set in config\n");
 		return 1;
 	}
-
-	std::string gameName = argv[1];
-	std::string romfsPath = argv[2];
-	std::string objectName = argv[3];
-	std::string outPath = argc < 5 ? "results.txt" : argv[4];
 
 	Game game;
 	if (util::isEqual(gameName, "smo"))

@@ -21,8 +21,8 @@ include_directories(src)
 
 set(MAIN_SOURCES src/main.cpp)
 set(COPY_SOURCES src/copy.cpp)
-set(SEARCH_SOURCES src/search.cpp)
-set(CONFIG_SOURCES src/config.cpp)
+set(SEARCH_SOURCES src/search.cpp src/configpath.cpp)
+set(CONFIG_SOURCES src/config.cpp src/configpath.cpp)
 
 add_executable(afl-utils ${MAIN_SOURCES})
 add_executable(afl-search ${SEARCH_SOURCES})
