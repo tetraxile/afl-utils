@@ -302,6 +302,8 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 			fprintf(f, "%s:\n", stageName.c_str());
 			for (const auto& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
+				if (!util::isEqual(result.unitConfigName, result.modelName))
+					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
 				fprintf(
 					f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y,
 					result.trans.z
