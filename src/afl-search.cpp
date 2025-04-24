@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -356,7 +357,7 @@ s32 main(s32 argc, char** argv) {
 		});
 
 	app.add_option("-r,--romfs", romfsPath, "path to game's ROMFS")->check(CLI::ExistingDirectory);
-	app.add_option("-n,--name", objectName, "name of object to search for")->required();
+	app.add_option("-n,--name", objectName, "name of object to search for");
 	app.add_option("-o,--output", outPath, "path to output file")->default_val("results.txt");
 
 	CLI11_PARSE(app, argc, argv);
@@ -375,6 +376,11 @@ s32 main(s32 argc, char** argv) {
 	else {
 		fprintf(stderr, "error: invalid game name (expected \"smo\" or \"3dw\")");
 		return 1;
+	}
+
+	if (objectName.empty()) {
+		printf("object name: ");
+		std::getline(std::cin, objectName);
 	}
 
 	Query query = { .name = objectName, .isRecurse = false };
