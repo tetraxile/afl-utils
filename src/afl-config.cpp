@@ -1,5 +1,3 @@
-#include "config.h"
-
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -8,6 +6,7 @@
 #include "CLI11/CLI11.hpp"
 #include "afl/types.h"
 #include "afl/util.h"
+#include "config.h"
 #include "mini/ini.h"
 
 s32 main(s32 argc, char** argv) {
@@ -33,6 +32,18 @@ s32 main(s32 argc, char** argv) {
 			->check(CLI::ExistingDirectory);
 	}
 
+	CLI::App* defaultGame =
+		app.add_subcommand("default_game", "set the default game for scripts to use");
+	{
+		defaultGame->add_option("game", gameName, "one of \"smo\" or \"3dw\"")
+			->required()
+			->check([](const std::string& input) {
+				if (!util::isEqual(input, "smo") && !util::isEqual(input, "3dw"))
+					throw CLI::ValidationError("must be one of \"smo\" or \"3dw\"");
+				return "";
+			});
+	}
+
 	CLI11_PARSE(app, argc, argv);
 
 	generateDefaultConfig();
@@ -49,6 +60,9 @@ s32 main(s32 argc, char** argv) {
 	if (romfs->parsed()) {
 		printf("setting ROMFS path to %s\n", romfsPath.c_str());
 		ini["romfs"][gameName] = romfsPath;
+	} else if (defaultGame->parsed()) {
+		printf("setting default game to %s\n", gameName.c_str());
+		ini["default"]["game"] = gameName;
 	}
 
 	iniFile.write(ini, true);

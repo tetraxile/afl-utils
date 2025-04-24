@@ -349,7 +349,6 @@ s32 main(s32 argc, char** argv) {
 	std::string outPath;
 
 	app.add_option("game", gameName, "one of \"smo\" or \"3dw\"")
-		->required()
 		->check([](const std::string& input) {
 			if (!util::isEqual(input, "smo") && !util::isEqual(input, "3dw"))
 				throw CLI::ValidationError("must be one of \"smo\" or \"3dw\"");
@@ -362,9 +361,9 @@ s32 main(s32 argc, char** argv) {
 
 	CLI11_PARSE(app, argc, argv);
 
-	if (romfsPath.empty()) romfsPath = ini["romfs"][gameName];
-	if (romfsPath.empty()) {
-		fprintf(stderr, "error: romfs path not set in config\n");
+	if (gameName.empty()) gameName = ini["default"]["game"];
+	if (gameName.empty()) {
+		fprintf(stderr, "error: default game not set in config\n");
 		return 1;
 	}
 
@@ -375,6 +374,12 @@ s32 main(s32 argc, char** argv) {
 		game = Game::SM3DW;
 	else {
 		fprintf(stderr, "error: invalid game name (expected \"smo\" or \"3dw\")");
+		return 1;
+	}
+
+	if (romfsPath.empty()) romfsPath = ini["romfs"][gameName];
+	if (romfsPath.empty()) {
+		fprintf(stderr, "error: romfs path for game '%s' not set in config\n", gameName.c_str());
 		return 1;
 	}
 
