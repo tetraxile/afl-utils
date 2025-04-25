@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <format>
 #include <fstream>
+#include <iostream>
 
 #include "afl/bffnt.h"
 #include "afl/bfres.h"
@@ -12,19 +13,8 @@
 #include "afl/util.h"
 #include "afl/yaz0.h"
 
-enum class Format {
-	Yaz0,
-	SARC,
-	SZS,
-	BFFNT,
-	BNTX,
-	BYML,
-	BFRES,
-};
-
-enum class Option {
-	Read,
-	Write,
+enum Error : result_t {
+	InvalidArgument = 0x1001,
 };
 
 std::string print_byml(const byml::Reader& node, s32 level = 0) {
@@ -137,90 +127,113 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 	return out;
 }
 
+result_t handle_yaz0(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		std::vector<u8> outputBuffer;
+		r = yaz0::decompress(outputBuffer, fileContents);
+		if (r) return r;
+
+		std::ofstream outfile(argv[4], std::ios::out | std::ios::binary);
+		outfile.write(reinterpret_cast<const char*>(outputBuffer.data()), outputBuffer.size());
+	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
+		if (argc < 5) {
+			fprintf(
+				stderr, "usage: %s yaz0 w <decompressed file> <compressed file> [alignment]\n",
+				argv[0]
+			);
+			return Error::InvalidArgument;
+		}
+
+		u32 alignment = argc > 5 ? atoi(argv[5]) : 0x80;
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		std::vector<u8> outputBuffer;
+		yaz0::compress(outputBuffer, fileContents, alignment);
+
+		util::writeFile(argv[4], outputBuffer);
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
+	}
+}
+
+result_t handle_sarc(s32 argc, char* argv[]) {
+	return 0;
+}
+
+result_t handle_szs(s32 argc, char* argv[]) {
+	return 0;
+}
+
+result_t handle_bffnt(s32 argc, char* argv[]) {
+	return 0;
+}
+
+result_t handle_bntx(s32 argc, char* argv[]) {
+	return 0;
+}
+
+result_t handle_byml(s32 argc, char* argv[]) {
+	return 0;
+}
+
+result_t handle_bfres(s32 argc, char* argv[]) {
+	return 0;
+}
+
 s32 main(s32 argc, char* argv[]) {
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s <format> <option>\n", argv[0]);
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s <format> <options...>\n", argv[0]);
 		fprintf(stderr, "\tformats: yaz0, sarc, szs, bffnt, bntx, byml, bfres\n");
-		fprintf(stderr, "\toptions: read, r, write, w\n");
 		return 1;
 	}
+
+	result_t r;
 
 	Format format;
 	if (util::isEqual(argv[1], "yaz0"))
-		format = Format::Yaz0;
+		r = handle_yaz0(argc, argv);
 	else if (util::isEqual(argv[1], "sarc"))
-		format = Format::SARC;
+		r = handle_sarc(argc, argv);
 	else if (util::isEqual(argv[1], "szs"))
-		format = Format::SZS;
+		r = handle_szs(argc, argv);
 	else if (util::isEqual(argv[1], "bffnt"))
-		format = Format::BFFNT;
+		r = handle_bffnt(argc, argv);
 	else if (util::isEqual(argv[1], "bntx"))
-		format = Format::BNTX;
+		r = handle_bntx(argc, argv);
 	else if (util::isEqual(argv[1], "byml"))
-		format = Format::BYML;
+		r = handle_byml(argc, argv);
 	else if (util::isEqual(argv[1], "bfres"))
-		format = Format::BFRES;
+		r = handle_bfres(argc, argv);
 	else {
-		fprintf(stderr, "error: unrecognized format '%s'\n", argv[1]);
+		fprintf(stderr, "error: unrecognized format '%s'\n\n", argv[1]);
+		fprintf(stderr, "usage: %s <format> <options...>\n", argv[0]);
+		fprintf(stderr, "\tformats: yaz0, sarc, szs, bffnt, bntx, byml, bfres\n");
 		return 1;
 	}
 
-	Option option;
-	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r"))
-		option = Option::Read;
-	else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w"))
-		option = Option::Write;
-	else {
-		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return 1;
-	}
+	if (r == Error::InvalidArgument) return r;
 
-	result_t r = 0;
+	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
+
+	r = 0;
 
 	switch (format) {
-	case Format::Yaz0:
-		if (option == Option::Read) {
-			if (argc < 5) {
-				fprintf(
-					stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", argv[0]
-				);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			std::vector<u8> outputBuffer;
-			r = yaz0::decompress(outputBuffer, fileContents);
-			if (r) break;
-
-			std::ofstream outfile(argv[4], std::ios::out | std::ios::binary);
-			outfile.write(reinterpret_cast<const char*>(outputBuffer.data()), outputBuffer.size());
-		} else {
-			if (argc < 5) {
-				fprintf(
-					stderr,
-					"usage: %s yaz0 w <decompressed file> <compressed file>"
-					"[alignment]\n",
-					argv[0]
-				);
-				return 1;
-			}
-
-			u32 alignment = argc > 5 ? atoi(argv[5]) : 0x80;
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			std::vector<u8> outputBuffer;
-			yaz0::compress(outputBuffer, fileContents, alignment);
-
-			util::writeFile(argv[4], outputBuffer);
-		}
-
-		break;
+	case Format::Yaz0: break;
 	case Format::SARC:
 		if (option == Option::Read) {
 			if (argc < 5) {
@@ -353,8 +366,6 @@ s32 main(s32 argc, char* argv[]) {
 
 		break;
 	}
-
-	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
 
 	return 0;
 }

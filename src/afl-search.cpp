@@ -278,7 +278,7 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 		stagePaths.insert(entry.path());
 
 	for (const auto& stagePath : stagePaths) {
-		std::string stageName = stagePath.filename().replace_extension();
+		std::string stageName = stagePath.filename().replace_extension().string();
 		mCurStageName = stageName;
 
 		r = searchStage(stagePath);
