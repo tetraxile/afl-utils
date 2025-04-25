@@ -130,6 +130,14 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 result_t handle_yaz0(s32 argc, char* argv[]) {
 	result_t r;
 
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", argv[0]);
+		fprintf(
+			stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n", argv[0]
+		);
+		return Error::InvalidArgument;
+	}
+
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", argv[0]);
@@ -176,6 +184,12 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 result_t handle_sarc(s32 argc, char* argv[]) {
 	result_t r;
 
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", argv[0]);
+		fprintf(stderr, "       %s sarc w <input dir> <archive>\n", argv[0]);
+		return Error::InvalidArgument;
+	}
+
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", argv[0]);
@@ -205,6 +219,11 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 result_t handle_szs(s32 argc, char* argv[]) {
 	result_t r;
 
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", argv[0]);
+		return Error::InvalidArgument;
+	}
+
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", argv[0]);
@@ -233,6 +252,11 @@ result_t handle_szs(s32 argc, char* argv[]) {
 result_t handle_bffnt(s32 argc, char* argv[]) {
 	result_t r;
 
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s bffnt r <font file>\n", argv[0]);
+		return Error::InvalidArgument;
+	}
+
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s bffnt r <font file>\n", argv[0]);
@@ -254,6 +278,11 @@ result_t handle_bffnt(s32 argc, char* argv[]) {
 result_t handle_bntx(s32 argc, char* argv[]) {
 	result_t r;
 
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s bntx r <texture file>\n", argv[0]);
+		return Error::InvalidArgument;
+	}
+
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s bntx r <texture file>\n", argv[0]);
@@ -274,6 +303,12 @@ result_t handle_bntx(s32 argc, char* argv[]) {
 
 result_t handle_byml(s32 argc, char* argv[]) {
 	result_t r;
+
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s byml r <input file>\n", argv[0]);
+		fprintf(stderr, "       %s byml w <output file>\n", argv[0]);
+		return Error::InvalidArgument;
+	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
@@ -303,6 +338,12 @@ result_t handle_byml(s32 argc, char* argv[]) {
 
 result_t handle_bfres(s32 argc, char* argv[]) {
 	result_t r;
+
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s bfres r <input file>\n", argv[0]);
+		fprintf(stderr, "       %s bfres w <input file>\n", argv[0]);
+		return Error::InvalidArgument;
+	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
