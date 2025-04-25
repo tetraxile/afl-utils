@@ -86,9 +86,9 @@ struct SearchEngine {
 	SearchEngine(const Game& game, const Query& query) : mGame(game), mQuery(query) {}
 
 	result_t searchAllStages(const fs::path& romfsPath);
+	result_t searchBYML(const std::vector<u8> bymlContents);
 	result_t searchStage(const fs::path& stagePath);
 	result_t searchScenario(const byml::Reader& scenario);
-	result_t loadStage(std::vector<u8>& bymlContents, const fs::path& stagePath);
 	void saveResults(const fs::path& outPath) const;
 
 	const Game mGame;
@@ -98,37 +98,6 @@ struct SearchEngine {
 	u32 mCurScenarioIdx;
 	std::string mCurItemList;
 };
-
-result_t SearchEngine::loadStage(std::vector<u8>& bymlContents, const fs::path& stagePath) {
-	result_t r;
-
-	std::string stageName = stagePath.filename().replace_extension().string();
-
-	std::vector<u8> szsContents;
-	r = util::readFile(szsContents, stagePath);
-	if (r) return r;
-
-	std::vector<u8> decompressed;
-	r = yaz0::decompress(decompressed, szsContents);
-	if (r) return r;
-
-	SARC sarc(decompressed);
-	r = sarc.read();
-	if (r) return r;
-
-	std::string suffix;
-	if (mGame == Game::SMO)
-		suffix = ".byml";
-	else if (mGame == Game::SM3DW)
-		suffix = "Map.byml";
-	else
-		return util::Error::FileNotFound;
-
-	r = sarc.getFileData(bymlContents, stageName + suffix);
-	if (r) return r;
-
-	return 0;
-}
 
 result_t readVec3f(Vector3f* out, const byml::Reader& reader, const std::string& name) {
 	result_t r;
@@ -213,32 +182,83 @@ result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 	return 0;
 }
 
-result_t SearchEngine::searchStage(const fs::path& stagePath) {
+result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 	result_t r;
 
-	std::string stageName = stagePath.filename().replace_extension().string();
-
-	std::vector<u8> bymlContents;
-	loadStage(bymlContents, stagePath);
-
-	byml::Reader stageReader;
-	r = stageReader.init(&bymlContents[0]);
+	byml::Reader reader;
+	r = reader.init(&bymlContents[0]);
 	if (r) return r;
 
-	if (!stageReader.isExistStringValue(mQuery.name)) return 0;
+	if (!reader.isExistStringValue(mQuery.name)) return 0;
 
 	if (mGame == Game::SMO) {
-		for (u32 scenarioIdx = 0; scenarioIdx < stageReader.getSize(); scenarioIdx++) {
+		for (u32 scenarioIdx = 0; scenarioIdx < reader.getSize(); scenarioIdx++) {
 			mCurScenarioIdx = scenarioIdx;
 
 			byml::Reader scenario;
-			stageReader.getContainerByIdx(&scenario, scenarioIdx);
+			reader.getContainerByIdx(&scenario, scenarioIdx);
 
 			r = searchScenario(scenario);
 			if (r) return r;
 		}
 	} else if (mGame == Game::SM3DW) {
-		searchScenario(stageReader);
+		searchScenario(reader);
+	}
+
+	return 0;
+}
+
+result_t SearchEngine::searchStage(const fs::path& stagePath) {
+	result_t r;
+
+	std::string stageName = stagePath.filename().replace_extension().string();
+
+	if (mGame == Game::SMO) {
+		std::vector<u8> szsContents;
+		r = util::readFile(szsContents, stagePath);
+		if (r) return r;
+
+		std::vector<u8> sarcContents;
+		r = yaz0::decompress(sarcContents, szsContents);
+		if (r) return r;
+
+		SARC sarc(sarcContents);
+		r = sarc.read();
+		if (r) return r;
+
+		std::vector<u8> bymlContents;
+		r = sarc.getFileData(bymlContents, stageName + ".byml");
+		if (r) return r;
+
+		searchBYML(bymlContents);
+	} else if (mGame == Game::SM3DW) {
+		printf("loading %s\n", stagePath.string().c_str());
+
+		std::vector<u8> szsContents;
+		r = util::readFile(szsContents, stagePath);
+		if (r) return r;
+
+		std::vector<u8> sarcContents;
+		r = yaz0::decompress(sarcContents, szsContents);
+		if (r) return r;
+
+		SARC sarc(sarcContents);
+		r = sarc.read();
+		if (r) return r;
+
+		const std::array<std::string, 3> suffixes = { "Map", "Design", "Sound" };
+		const auto& filenames = sarc.getFilenames();
+
+		for (const auto& suffix : suffixes) {
+			const std::string bymlName = stageName + suffix + ".byml";
+			if (!filenames.contains(bymlName)) continue;
+
+			std::vector<u8> bymlContents;
+			r = sarc.getFileData(bymlContents, bymlName);
+			if (r) return r;
+
+			searchBYML(bymlContents);
+		}
 	}
 
 	return 0;
@@ -250,25 +270,16 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 	const fs::path stageDataPath = romfsPath / "StageData";
 	if (!fs::is_directory(stageDataPath)) return util::Error::DirNotFound;
 
-	std::string stageSuffix;
-	if (mGame == Game::SMO)
-		stageSuffix = "Map.szs";
-	else if (mGame == Game::SM3DW)
-		stageSuffix = ".szs";
+	printf("searching...\n");
 
 	// sort stage paths
 	std::set<fs::path> stagePaths;
-	for (const auto& entry : fs::directory_iterator(stageDataPath)) {
-		if (!endsWith(entry.path().filename().string(), stageSuffix)) continue;
+	for (const auto& entry : fs::directory_iterator(stageDataPath))
 		stagePaths.insert(entry.path());
-	}
 
 	for (const auto& stagePath : stagePaths) {
-		std::string stageName = stagePath.filename().string();
-		stageName.erase(stageName.find(stageSuffix), stageSuffix.length());
+		std::string stageName = stagePath.filename().replace_extension();
 		mCurStageName = stageName;
-
-		// if (!util::is_equal(stageName, "TitleDemo00Stage")) continue;
 
 		r = searchStage(stagePath);
 		if (r) return r;
@@ -303,7 +314,8 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 			fprintf(f, "%s:\n", stageName.c_str());
 			for (const auto& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.modelName))
+				if (!util::isEqual(result.unitConfigName, result.modelName) &&
+				    !result.modelName.empty())
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
 				fprintf(
 					f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y,
@@ -393,11 +405,6 @@ s32 main(s32 argc, char** argv) {
 		printf("object name: ");
 		std::getline(std::cin, objectName);
 	}
-
-	printf("game name: %s\n", gameName.c_str());
-	printf("romfs path: %s\n", romfsPath.c_str());
-	printf("object name: %s\n", objectName.c_str());
-	printf("out path: %s\n", outPath.c_str());
 
 	Query query = { .name = objectName, .isRecurse = false };
 

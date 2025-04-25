@@ -19,7 +19,7 @@ s32 main(s32 argc, char** argv) {
 	// clang-format off
 
 	enum class Mode { none, help, romfs, defaultGame };
-	Mode mode;
+	Mode mode = Mode::none;
 
 	auto isGameName = [](const std::string& arg) { return util::isEqual(arg, "smo") || util::isEqual(arg, "3dw"); };
 
