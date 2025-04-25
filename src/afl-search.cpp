@@ -415,4 +415,8 @@ s32 main(s32 argc, char** argv) {
 	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
 
 	engine.saveResults(outPath);
+
+#ifdef _WIN32
+	system("pause");
+#endif
 }
