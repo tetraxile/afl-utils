@@ -169,29 +169,162 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
 		return Error::InvalidArgument;
 	}
+
+	return 0;
 }
 
 result_t handle_sarc(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		SARC sarc(fileContents);
+		r = sarc.read();
+		if (r) return r;
+
+		r = sarc.saveAll(argv[4]);
+		if (r) return r;
+	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s sarc w <input dir> <archive>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+	}
+
 	return 0;
 }
 
 result_t handle_szs(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		std::vector<u8> decompressed;
+		r = yaz0::decompress(decompressed, fileContents);
+		if (r) return r;
+
+		SARC sarc(decompressed);
+		r = sarc.read();
+		if (r) return r;
+
+		r = sarc.saveAll(argv[4]);
+		if (r) return r;
+	}
+
 	return 0;
 }
 
 result_t handle_bffnt(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s bffnt r <font file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		BFFNT bffnt(fileContents);
+		r = bffnt.read();
+		if (r) return r;
+	}
+
 	return 0;
 }
 
 result_t handle_bntx(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s bntx r <texture file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		BNTX bntx(fileContents);
+		r = bntx.read();
+		if (r) return r;
+	}
+
 	return 0;
 }
 
 result_t handle_byml(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s byml r <input file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		byml::Reader byml;
+		r = byml.init(&fileContents[0]);
+		if (r) return r;
+
+		std::string out = print_byml(byml);
+		printf("%s\n", out.c_str());
+	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s byml w <output file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+	}
+
 	return 0;
 }
 
 result_t handle_bfres(s32 argc, char* argv[]) {
+	result_t r;
+
+	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s bfres r <input file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		BFRES bfres(fileContents);
+		r = bfres.read();
+		if (r) return r;
+
+	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s bfres w <input file>\n", argv[0]);
+			return Error::InvalidArgument;
+		}
+	}
+
 	return 0;
 }
 
@@ -204,7 +337,6 @@ s32 main(s32 argc, char* argv[]) {
 
 	result_t r;
 
-	Format format;
 	if (util::isEqual(argv[1], "yaz0"))
 		r = handle_yaz0(argc, argv);
 	else if (util::isEqual(argv[1], "sarc"))
@@ -229,143 +361,6 @@ s32 main(s32 argc, char* argv[]) {
 	if (r == Error::InvalidArgument) return r;
 
 	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
-
-	r = 0;
-
-	switch (format) {
-	case Format::Yaz0: break;
-	case Format::SARC:
-		if (option == Option::Read) {
-			if (argc < 5) {
-				fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", argv[0]);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			SARC sarc(fileContents);
-			r = sarc.read();
-			if (r) break;
-
-			r = sarc.saveAll(argv[4]);
-			if (r) break;
-		} else {
-			if (argc < 5) {
-				fprintf(stderr, "usage: %s sarc w <input dir> <archive>\n", argv[0]);
-				return 1;
-			}
-		}
-
-		break;
-	case Format::SZS:
-		if (option == Option::Read) {
-			if (argc < 5) {
-				fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", argv[0]);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			std::vector<u8> decompressed;
-			r = yaz0::decompress(decompressed, fileContents);
-			if (r) break;
-
-			SARC sarc(decompressed);
-			r = sarc.read();
-			if (r) break;
-
-			r = sarc.saveAll(argv[4]);
-			if (r) break;
-		}
-
-		break;
-	case Format::BFFNT:
-		if (option == Option::Read) {
-			if (argc < 4) {
-				fprintf(stderr, "usage: %s bffnt r <font file>\n", argv[0]);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			BFFNT bffnt(fileContents);
-			r = bffnt.read();
-			if (r) break;
-		}
-
-		break;
-	case Format::BNTX:
-		if (option == Option::Read) {
-			if (argc < 4) {
-				fprintf(stderr, "usage: %s bntx r <texture file>\n", argv[0]);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			BNTX bntx(fileContents);
-			r = bntx.read();
-			if (r) break;
-		}
-
-		break;
-	case Format::BYML:
-		if (option == Option::Read) {
-			if (argc < 4) {
-				fprintf(stderr, "usage: %s byml r <input file>\n", argv[0]);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			byml::Reader byml;
-			r = byml.init(&fileContents[0]);
-			if (r) break;
-
-			std::string out = print_byml(byml);
-			printf("%s\n", out.c_str());
-		} else {
-			if (argc < 4) {
-				fprintf(stderr, "usage: %s byml w <output file>\n", argv[0]);
-				return 1;
-			}
-		}
-
-		break;
-	case Format::BFRES:
-		if (option == Option::Read) {
-			if (argc < 4) {
-				fprintf(stderr, "usage: %s bfres r <input file>\n", argv[0]);
-				return 1;
-			}
-
-			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, argv[3]);
-			if (r) break;
-
-			BFRES bfres(fileContents);
-			r = bfres.read();
-			if (r) break;
-
-		} else {
-			if (argc < 4) {
-				fprintf(stderr, "usage: %s bfres w <input file>\n", argv[0]);
-				return 1;
-			}
-		}
-
-		break;
-	}
 
 	return 0;
 }
