@@ -17,6 +17,8 @@ enum Error : result_t {
 	InvalidArgument = 0x1001,
 };
 
+std::string programName;
+
 std::string print_byml(const byml::Reader& node, s32 level = 0) {
 	// std::string indent(level, '\t');
 	std::string out;
@@ -130,17 +132,23 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 result_t handle_yaz0(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(
-			stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n", argv[0]
+			stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str()
+		);
+		fprintf(
+			stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n",
+			programName.c_str()
 		);
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", argv[0]);
+			fprintf(
+				stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n",
+				programName.c_str()
+			);
 			return Error::InvalidArgument;
 		}
 
@@ -158,7 +166,7 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 		if (argc < 5) {
 			fprintf(
 				stderr, "usage: %s yaz0 w <decompressed file> <compressed file> [alignment]\n",
-				argv[0]
+				programName.c_str()
 			);
 			return Error::InvalidArgument;
 		}
@@ -184,15 +192,15 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 result_t handle_sarc(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", argv[0]);
-		fprintf(stderr, "       %s sarc w <input dir> <archive>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
+		fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", programName.c_str());
+		fprintf(stderr, "       %s sarc w <input dir> <archive>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", argv[0]);
+			fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -208,7 +216,7 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 		if (r) return r;
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s sarc w <input dir> <archive>\n", argv[0]);
+			fprintf(stderr, "usage: %s sarc w <input dir> <archive>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 	}
@@ -219,14 +227,14 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 result_t handle_szs(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
+		fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", argv[0]);
+			fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -252,14 +260,14 @@ result_t handle_szs(s32 argc, char* argv[]) {
 result_t handle_bffnt(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s bffnt r <font file>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
+		fprintf(stderr, "usage: %s bffnt r <font file>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s bffnt r <font file>\n", argv[0]);
+			fprintf(stderr, "usage: %s bffnt r <font file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -278,14 +286,14 @@ result_t handle_bffnt(s32 argc, char* argv[]) {
 result_t handle_bntx(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s bntx r <texture file>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
+		fprintf(stderr, "usage: %s bntx r <texture file>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s bntx r <texture file>\n", argv[0]);
+			fprintf(stderr, "usage: %s bntx r <texture file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -304,15 +312,15 @@ result_t handle_bntx(s32 argc, char* argv[]) {
 result_t handle_byml(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s byml r <input file>\n", argv[0]);
-		fprintf(stderr, "       %s byml w <output file>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
+		fprintf(stderr, "usage: %s byml r <input file>\n", programName.c_str());
+		fprintf(stderr, "       %s byml w <output file>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s byml r <input file>\n", argv[0]);
+			fprintf(stderr, "usage: %s byml r <input file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -328,7 +336,7 @@ result_t handle_byml(s32 argc, char* argv[]) {
 		printf("%s\n", out.c_str());
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s byml w <output file>\n", argv[0]);
+			fprintf(stderr, "usage: %s byml w <output file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 	}
@@ -339,15 +347,15 @@ result_t handle_byml(s32 argc, char* argv[]) {
 result_t handle_bfres(s32 argc, char* argv[]) {
 	result_t r;
 
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s bfres r <input file>\n", argv[0]);
-		fprintf(stderr, "       %s bfres w <input file>\n", argv[0]);
+	if (argc < 3 || util::isEqual(argv[2], "--help")) {
+		fprintf(stderr, "usage: %s bfres r <input file>\n", programName.c_str());
+		fprintf(stderr, "       %s bfres w <input file>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s bfres r <input file>\n", argv[0]);
+			fprintf(stderr, "usage: %s bfres r <input file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -361,7 +369,7 @@ result_t handle_bfres(s32 argc, char* argv[]) {
 
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s bfres w <input file>\n", argv[0]);
+			fprintf(stderr, "usage: %s bfres w <input file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 	}
@@ -370,9 +378,15 @@ result_t handle_bfres(s32 argc, char* argv[]) {
 }
 
 s32 main(s32 argc, char* argv[]) {
+	programName = "./" + fs::path(argv[0]).filename().string();
+
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s <format> <options...>\n", argv[0]);
+		fprintf(stderr, "usage: %s <format> <options...>\n", programName.c_str());
 		fprintf(stderr, "\tformats: yaz0, sarc, szs, bffnt, bntx, byml, bfres\n");
+		fprintf(
+			stderr, "\nrun `%s <format> --help` for more info on a specific format\n",
+			programName.c_str()
+		);
 		return 1;
 	}
 

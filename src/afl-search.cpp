@@ -373,8 +373,10 @@ s32 main(s32 argc, char** argv) {
 	if (!parse(argc, argv, cli) || isShowHelp) {
 		auto fmt = doc_formatting {}.first_column(2).doc_column(20);
 
+		std::string programName = "./" + fs::path(argv[0]).filename().string();
+
 		std::cout << "usage:\n"
-				  << usage_lines(cli, argv[0], fmt) << "\n\noptions:\n"
+				  << usage_lines(cli, programName, fmt) << "\n\noptions:\n"
 				  << documentation(cli, fmt) << std::endl;
 		return 1;
 	}
