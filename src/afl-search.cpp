@@ -89,7 +89,7 @@ struct SearchEngine {
 	result_t searchBYML(const std::vector<u8> bymlContents);
 	result_t searchStage(const fs::path& stagePath);
 	result_t searchScenario(const byml::Reader& scenario);
-	void saveResults(const fs::path& outPath) const;
+	result_t saveResults(const fs::path& outPath) const;
 
 	const Game mGame;
 	const Query mQuery;
@@ -288,8 +288,13 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 	return 0;
 }
 
-void SearchEngine::saveResults(const fs::path& outPath) const {
+result_t SearchEngine::saveResults(const fs::path& outPath) const {
 	FILE* f = fopen(outPath.string().c_str(), "w");
+
+	if (!f) {
+		fprintf(stderr, "error: could not create file %s\n", outPath.string().c_str());
+		return util::Error::FileError;
+	}
 
 	if (mGame == Game::SMO) {
 		std::unordered_set<Result> collapsedResults;
@@ -342,6 +347,8 @@ void SearchEngine::saveResults(const fs::path& outPath) const {
 	fclose(f);
 
 	printf("saved results to %s\n", outPath.string().c_str());
+
+	return 0;
 }
 
 s32 main(s32 argc, char** argv) {
@@ -416,9 +423,11 @@ s32 main(s32 argc, char** argv) {
 
 	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
 
-	engine.saveResults(outPath);
+	r = engine.saveResults(outPath);
 
 #ifdef _WIN32
 	system("pause");
 #endif
+
+	if (r == util::Error::FileError) return 1;
 }
