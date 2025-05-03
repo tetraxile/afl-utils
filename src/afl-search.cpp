@@ -88,7 +88,7 @@ struct SearchEngine {
 	result_t searchAllStages(const fs::path& romfsPath);
 	result_t searchBYML(const std::vector<u8> bymlContents);
 	result_t searchStage(const fs::path& stagePath);
-	result_t searchScenario(const byml::Reader& scenario);
+	result_t searchBYML(const byml::Reader& scenario);
 	result_t saveResults(const fs::path& outPath) const;
 
 	const Game mGame;
@@ -118,7 +118,7 @@ result_t readVec3f(Vector3f* out, const byml::Reader& reader, const std::string&
 	return 0;
 }
 
-result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
+result_t SearchEngine::searchBYML(const byml::Reader& scenario) {
 	result_t r;
 
 	for (u32 listIdx = 0; listIdx < scenario.getSize(); listIdx++) {
@@ -198,11 +198,11 @@ result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 			byml::Reader scenario;
 			reader.getContainerByIdx(&scenario, scenarioIdx);
 
-			r = searchScenario(scenario);
+			r = searchBYML(scenario);
 			if (r) return r;
 		}
 	} else if (mGame == Game::SM3DW) {
-		searchScenario(reader);
+		searchBYML(reader);
 	}
 
 	return 0;
@@ -211,7 +211,7 @@ result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 result_t SearchEngine::searchStage(const fs::path& stagePath) {
 	result_t r;
 
-	std::string stageName = stagePath.filename().replace_extension().string();
+	std::string stageName = stagePath.filename().stem().string();
 
 	if (mGame == Game::SMO) {
 		std::vector<u8> szsContents;
@@ -232,8 +232,6 @@ result_t SearchEngine::searchStage(const fs::path& stagePath) {
 
 		searchBYML(bymlContents);
 	} else if (mGame == Game::SM3DW) {
-		printf("loading %s\n", stagePath.string().c_str());
-
 		std::vector<u8> szsContents;
 		r = util::readFile(szsContents, stagePath);
 		if (r) return r;
@@ -278,7 +276,7 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 		stagePaths.insert(entry.path());
 
 	for (const auto& stagePath : stagePaths) {
-		std::string stageName = stagePath.filename().replace_extension().string();
+		std::string stageName = stagePath.filename().stem().string();
 		mCurStageName = stageName;
 
 		r = searchStage(stagePath);
@@ -289,6 +287,11 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 }
 
 result_t SearchEngine::saveResults(const fs::path& outPath) const {
+	if (mResults.size() == 0) {
+		printf("found no matches\n");
+		return 0;
+	}
+
 	FILE* f = fopen(outPath.string().c_str(), "w");
 
 	if (!f) {
