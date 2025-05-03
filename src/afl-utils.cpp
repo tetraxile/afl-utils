@@ -354,8 +354,8 @@ result_t handle_bfres(s32 argc, char* argv[]) {
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
-		if (argc < 4) {
-			fprintf(stderr, "usage: %s bfres r <input file>\n", programName.c_str());
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s bfres r <input file> <output file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -363,10 +363,12 @@ result_t handle_bfres(s32 argc, char* argv[]) {
 		r = util::readFile(fileContents, argv[3]);
 		if (r) return r;
 
-		BFRES bfres(fileContents);
+		bfres::Reader bfres(fileContents);
 		r = bfres.read();
 		if (r) return r;
 
+		r = bfres.exportGLTF(argv[4]);
+		if (r) return r;
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s bfres w <input file>\n", programName.c_str());
