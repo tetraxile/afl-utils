@@ -88,7 +88,7 @@ struct SearchEngine {
 	result_t searchAllStages(const fs::path& romfsPath);
 	result_t searchBYML(const std::vector<u8> bymlContents);
 	result_t searchStage(const fs::path& stagePath);
-	result_t searchBYML(const byml::Reader& scenario);
+	result_t searchScenario(const byml::Reader& scenario);
 	result_t saveResults(const fs::path& outPath) const;
 
 	const Game mGame;
@@ -118,7 +118,7 @@ result_t readVec3f(Vector3f* out, const byml::Reader& reader, const std::string&
 	return 0;
 }
 
-result_t SearchEngine::searchBYML(const byml::Reader& scenario) {
+result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 	result_t r;
 
 	for (u32 listIdx = 0; listIdx < scenario.getSize(); listIdx++) {
@@ -127,7 +127,7 @@ result_t SearchEngine::searchBYML(const byml::Reader& scenario) {
 		std::string listName = scenario.getHashString(keyIdx);
 		mCurItemList = listName;
 
-		if (util::isEqual(listName, "FilePath")) continue;
+		if (util::isEqual(listName, "FilePath") || util::isEqual(listName, "Objs")) continue;
 
 		byml::Reader itemList;
 		scenario.getContainerByIdx(&itemList, listIdx);
@@ -198,11 +198,11 @@ result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 			byml::Reader scenario;
 			reader.getContainerByIdx(&scenario, scenarioIdx);
 
-			r = searchBYML(scenario);
+			r = searchScenario(scenario);
 			if (r) return r;
 		}
 	} else if (mGame == Game::SM3DW) {
-		searchBYML(reader);
+		searchScenario(reader);
 	}
 
 	return 0;
@@ -325,6 +325,9 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 				if (!util::isEqual(result.unitConfigName, result.modelName) &&
 				    !result.modelName.empty())
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
+				if (!util::isEqual(result.unitConfigName, result.paramConfigName) &&
+				    !result.paramConfigName.empty())
+					fprintf(f, "\tParameterConfigName: %s\n", result.paramConfigName.c_str());
 				fprintf(
 					f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y,
 					result.trans.z
@@ -340,11 +343,33 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 	} else if (mGame == Game::SM3DW) {
 		printf("found %zu matches\n", mResults.size());
 
-		for (const Result& result : mResults)
-			fprintf(
-				f, "%s\t%s\t%s\n", result.stageName.c_str(), result.itemList.c_str(),
-				result.objId.c_str()
-			);
+		std::map<std::string, std::vector<Result>> stages;
+		for (const auto& result : mResults) {
+			if (stages.contains(result.stageName))
+				stages[result.stageName].push_back(result);
+			else
+				stages[result.stageName] = std::vector<Result> { result };
+		}
+
+		for (const auto& [stageName, results] : stages) {
+			fprintf(f, "%s:\n", stageName.c_str());
+			for (const auto& result : results) {
+				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
+				if (!util::isEqual(result.unitConfigName, result.modelName) &&
+				    !result.modelName.empty())
+					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
+				if (!util::isEqual(result.unitConfigName, result.paramConfigName) &&
+				    !result.paramConfigName.empty())
+					fprintf(f, "\tParameterConfigName: %s\n", result.paramConfigName.c_str());
+				fprintf(
+					f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y,
+					result.trans.z
+				);
+				fprintf(f, "\tId: %s\n", result.objId.c_str());
+				fprintf(f, "\titem list: %s\n", result.itemList.c_str());
+				fprintf(f, "\n");
+			}
+		}
 	}
 
 	fclose(f);
