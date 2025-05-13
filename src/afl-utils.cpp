@@ -32,55 +32,7 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 				byml::Reader container;
 				node.getContainerByIdx(&container, i);
 				out += print_byml(container, level + 1);
-			} else if (childType == byml::NodeType::String) {
-				std::string str;
-				node.getStringByIdx(&str, i);
-				out += std::format("\"{}\"", str);
-			} else if (childType == byml::NodeType::Bool) {
-				bool value;
-				node.getBoolByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::S32) {
-				s32 value;
-				node.getS32ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::U32) {
-				u32 value;
-				node.getU32ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::F32) {
-				f32 value;
-				node.getF32ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::S64) {
-				s64 value;
-				node.getS64ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::U64) {
-				u64 value;
-				node.getU64ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::F64) {
-				f64 value;
-				node.getF64ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::Bool) {
-				out += "null";
-			} else {
-				out += std::format("{:x}", (u8)childType);
-			}
-			if (i != node.getSize() - 1) out += ", ";
-		}
-		out += "]";
-	} else if (node.getType() == byml::NodeType::Hash) {
-		out += "{";
-		for (u32 i = 0; i < node.getSize(); i++) {
-			byml::NodeType childType;
-			node.getTypeByIdx(&childType, i);
-			u32 keyIdx;
-			node.getKeyByIdx(&keyIdx, i);
-			out += std::format("\"{}\": ", node.getHashString(keyIdx));
-			if (childType == byml::NodeType::Hash) {
+			} else if (childType == byml::NodeType::Array) {
 				byml::Reader container;
 				node.getContainerByIdx(&container, i);
 				out += print_byml(container, level + 1);
@@ -117,9 +69,75 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 				node.getF64ByIdx(&value, i);
 				out += std::format("{}", value);
 			} else if (childType == byml::NodeType::Bool) {
+				bool value;
+				node.getBoolByIdx(&value, i);
+				out += value ? "true" : "false";
+			} else if (childType == byml::NodeType::Null) {
 				out += "null";
 			} else {
-				out += std::format("{:x}", (u8)childType);
+				fprintf(stderr, "error: node type %02x\n", (u8)childType);
+				break;
+			}
+			if (i != node.getSize() - 1) out += ", ";
+		}
+		out += "]";
+	} else if (node.getType() == byml::NodeType::Hash) {
+		out += "{";
+		for (u32 i = 0; i < node.getSize(); i++) {
+			byml::NodeType childType;
+			node.getTypeByIdx(&childType, i);
+			u32 keyIdx;
+			node.getKeyByIdx(&keyIdx, i);
+			out += std::format("\"{}\": ", node.getHashString(keyIdx));
+			if (childType == byml::NodeType::Hash) {
+				byml::Reader container;
+				node.getContainerByIdx(&container, i);
+				out += print_byml(container, level + 1);
+			} else if (childType == byml::NodeType::Array) {
+				byml::Reader container;
+				node.getContainerByIdx(&container, i);
+				out += print_byml(container, level + 1);
+			} else if (childType == byml::NodeType::String) {
+				std::string str;
+				node.getStringByIdx(&str, i);
+				out += std::format("\"{}\"", str);
+			} else if (childType == byml::NodeType::Bool) {
+				bool value;
+				node.getBoolByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::S32) {
+				s32 value;
+				node.getS32ByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::U32) {
+				u32 value;
+				node.getU32ByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::F32) {
+				f32 value;
+				node.getF32ByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::S64) {
+				s64 value;
+				node.getS64ByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::U64) {
+				u64 value;
+				node.getU64ByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::F64) {
+				f64 value;
+				node.getF64ByIdx(&value, i);
+				out += std::format("{}", value);
+			} else if (childType == byml::NodeType::Bool) {
+				bool value;
+				node.getBoolByIdx(&value, i);
+				out += value ? "true" : "false";
+			} else if (childType == byml::NodeType::Null) {
+				out += "null";
+			} else {
+				fprintf(stderr, "error: node type %02x\n", (u8)childType);
+				break;
 			}
 			if (i != node.getSize() - 1) out += ", ";
 		}
@@ -313,14 +331,14 @@ result_t handle_byml(s32 argc, char* argv[]) {
 	result_t r;
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(stderr, "usage: %s byml r <input file>\n", programName.c_str());
+		fprintf(stderr, "usage: %s byml r <input file> [output json]\n", programName.c_str());
 		fprintf(stderr, "       %s byml w <output file>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
-			fprintf(stderr, "usage: %s byml r <input file>\n", programName.c_str());
+			fprintf(stderr, "usage: %s byml r <input file> [output json]\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -333,7 +351,11 @@ result_t handle_byml(s32 argc, char* argv[]) {
 		if (r) return r;
 
 		std::string out = print_byml(byml);
-		printf("%s\n", out.c_str());
+
+		if (argc < 5)
+			printf("%s\n", out.c_str());
+		else
+			util::writeFile(argv[4], out + '\n');
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s byml w <output file>\n", programName.c_str());
