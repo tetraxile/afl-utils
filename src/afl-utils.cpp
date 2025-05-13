@@ -211,14 +211,15 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 	result_t r;
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", programName.c_str());
-		fprintf(stderr, "       %s sarc w <input dir> <archive>\n", programName.c_str());
+		fprintf(stderr, "usage: %s sarc r|read <archive> <output dir>\n", programName.c_str());
+		fprintf(stderr, "       %s sarc w|write <input dir> <archive>\n", programName.c_str());
+		fprintf(stderr, "       %s sarc l|list <archive>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s sarc r <archive> <output dir>\n", programName.c_str());
+			fprintf(stderr, "usage: %s sarc r|read <archive> <output dir>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -234,9 +235,25 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 		if (r) return r;
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s sarc w <input dir> <archive>\n", programName.c_str());
+			fprintf(stderr, "usage: %s sarc w|write <input dir> <archive>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
+	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s sarc l|list <archive>\n", programName.c_str());
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		SARC sarc(fileContents);
+		r = sarc.read();
+		if (r) return r;
+
+		for (const std::string& filename : sarc.getFilenames())
+			printf("%s\n", filename.c_str());
 	}
 
 	return 0;
@@ -246,13 +263,14 @@ result_t handle_szs(s32 argc, char* argv[]) {
 	result_t r;
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", programName.c_str());
+		fprintf(stderr, "usage: %s szs r|read <archive> <output dir>\n", programName.c_str());
+		fprintf(stderr, "       %s szs l|list <archive>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s szs r <archive> <output dir>\n", programName.c_str());
+			fprintf(stderr, "usage: %s szs r|read <archive> <output dir>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -270,6 +288,26 @@ result_t handle_szs(s32 argc, char* argv[]) {
 
 		r = sarc.saveAll(argv[4]);
 		if (r) return r;
+	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
+		if (argc < 4) {
+			fprintf(stderr, "usage: %s szs l|list <archive>\n", programName.c_str());
+			return Error::InvalidArgument;
+		}
+
+		std::vector<u8> fileContents;
+		r = util::readFile(fileContents, argv[3]);
+		if (r) return r;
+
+		std::vector<u8> decompressed;
+		r = yaz0::decompress(decompressed, fileContents);
+		if (r) return r;
+
+		SARC sarc(decompressed);
+		r = sarc.read();
+		if (r) return r;
+
+		for (const std::string& filename : sarc.getFilenames())
+			printf("%s\n", filename.c_str());
 	}
 
 	return 0;
