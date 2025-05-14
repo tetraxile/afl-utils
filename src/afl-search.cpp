@@ -454,7 +454,7 @@ s32 main(s32 argc, char** argv) {
 	r = engine.saveResults(outPath);
 
 #ifdef _WIN32
-	system("pause");
+	if (!isatty_win()) system("pause");
 #endif
 
 	if (r == util::Error::FileError) return 1;
