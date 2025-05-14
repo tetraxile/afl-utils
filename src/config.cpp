@@ -1,6 +1,7 @@
+#include "config.h"
+
 #include <filesystem>
 
-#include "config.h"
 #include "mini/ini.h"
 
 #ifdef __linux__
@@ -19,6 +20,10 @@ const fs::path getConfigPath() {
 #elif _WIN32
 const fs::path getConfigPath() {
 	return fs::path(getenv("APPDATA")) / "afl-utils" / "config.ini";
+}
+
+bool isatty_win() {
+	return _isatty(_fileno(stdout));
 }
 #endif
 

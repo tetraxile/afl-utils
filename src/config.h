@@ -5,9 +5,7 @@
 #ifdef _WIN32
 # include <io.h>
 
-bool isatty_win() {
-	return _isatty(_fileno(stdout));
-}
+bool isatty_win();
 #endif
 
 namespace fs = std::filesystem;
