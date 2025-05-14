@@ -17,9 +17,20 @@ const fs::path getConfigPath() {
 
 	return fs::path(homeDir) / ".config" / "afl-utils" / "config.ini";
 }
+
 #elif _WIN32
+# include <stdlib.h>
+
 const fs::path getConfigPath() {
-	return fs::path(getenv("APPDATA")) / "afl-utils" / "config.ini";
+	char* buf = nullptr;
+	size_t sz = 0;
+	fs::path out = "";
+	if (_dupenv_s(&buf, &sz, "APPDATA") == 0 && buf != nullptr) {
+		out = fs::path(buf) / "afl-utils" / "config.ini";
+		free(buf);
+	}
+
+	return out;
 }
 
 bool isatty_win() {
