@@ -34,7 +34,7 @@ const fs::path getConfigPath() {
 }
 
 bool isatty_win() {
-	return _isatty(_fileno(stdout));
+	return false;
 }
 #endif
 
