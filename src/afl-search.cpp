@@ -122,9 +122,7 @@ result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 	result_t r;
 
 	for (u32 listIdx = 0; listIdx < scenario.getSize(); listIdx++) {
-		u32 keyIdx;
-		scenario.getKeyByIdx(&keyIdx, listIdx);
-		std::string listName = scenario.getHashString(keyIdx);
+		std::string listName = scenario.getKeyByIdx(listIdx);
 		mCurItemList = listName;
 
 		if (util::isEqual(listName, "FilePath") || util::isEqual(listName, "Objs")) continue;

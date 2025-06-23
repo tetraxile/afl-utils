@@ -86,9 +86,8 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 		for (u32 i = 0; i < node.getSize(); i++) {
 			byml::NodeType childType;
 			node.getTypeByIdx(&childType, i);
-			u32 keyIdx;
-			node.getKeyByIdx(&keyIdx, i);
-			out += std::format("\"{}\": ", node.getHashString(keyIdx));
+			std::string key = node.getKeyByIdx(i);
+			out += std::format("\"{}\": ", key);
 			if (childType == byml::NodeType::Hash) {
 				byml::Reader container;
 				node.getContainerByIdx(&container, i);
