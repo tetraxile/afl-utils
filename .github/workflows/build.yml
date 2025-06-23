@@ -24,7 +24,6 @@ jobs:
           path: |
             build/afl-search
             build/afl-utils
-            build/afl-copy
             build/afl-config
   
   build-windows:
@@ -47,5 +46,4 @@ jobs:
           path: |
             build/Release/afl-search.exe
             build/Release/afl-utils.exe
-            build/Release/afl-copy.exe
             build/Release/afl-config.exe

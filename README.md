@@ -40,12 +40,6 @@ this script searches through all of a game's stages for an object that matches t
 
 `object name` matches a `UnitConfigName`, `ModelName`, or `ParameterConfigName`.
 
-### afl-copy
-
-`usage: ./afl-copy <input file> <output file>`
-
-this script reads a BYML file and writes it again. not particularly useful unless your name rhymes with schmetraxile.
-
 ### afl-utils
 
 ```
