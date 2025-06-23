@@ -11,7 +11,7 @@
 
 #include "afl/byml/reader.h"
 #include "afl/result.h"
-#include "afl/sarc.h"
+#include "afl/sarc/reader.h"
 #include "afl/types.h"
 #include "afl/util.h"
 #include "afl/vector.h"
@@ -220,8 +220,8 @@ result_t SearchEngine::searchStage(const fs::path& stagePath) {
 		r = yaz0::decompress(sarcContents, szsContents);
 		if (r) return r;
 
-		SARC sarc(sarcContents);
-		r = sarc.read();
+		sarc::Reader sarc(sarcContents);
+		r = sarc.init();
 		if (r) return r;
 
 		std::vector<u8> bymlContents;
@@ -238,8 +238,8 @@ result_t SearchEngine::searchStage(const fs::path& stagePath) {
 		r = yaz0::decompress(sarcContents, szsContents);
 		if (r) return r;
 
-		SARC sarc(sarcContents);
-		r = sarc.read();
+		sarc::Reader sarc(sarcContents);
+		r = sarc.init();
 		if (r) return r;
 
 		const std::array<std::string, 3> suffixes = { "Map", "Design", "Sound" };

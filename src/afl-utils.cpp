@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -9,9 +10,12 @@
 #include "afl/byml/reader.h"
 #include "afl/byml/writer.h"
 #include "afl/result.h"
-#include "afl/sarc.h"
+#include "afl/sarc/reader.h"
+#include "afl/sarc/writer.h"
 #include "afl/util.h"
 #include "afl/yaz0.h"
+
+namespace fs = std::filesystem;
 
 enum Error : result_t {
 	InvalidArgument = 0x1001,
@@ -150,22 +154,14 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 	result_t r;
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
-		fprintf(
-			stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str()
-		);
-		fprintf(
-			stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n",
-			programName.c_str()
-		);
+		fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str());
+		fprintf(stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
-			fprintf(
-				stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n",
-				programName.c_str()
-			);
+			fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
@@ -182,8 +178,7 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
 			fprintf(
-				stderr, "usage: %s yaz0 w <decompressed file> <compressed file> [alignment]\n",
-				programName.c_str()
+				stderr, "usage: %s yaz0 w <decompressed file> <compressed file> [alignment]\n", programName.c_str()
 			);
 			return Error::InvalidArgument;
 		}
@@ -211,7 +206,7 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s sarc r|read <archive> <output dir>\n", programName.c_str());
-		fprintf(stderr, "       %s sarc w|write <input dir> <archive>\n", programName.c_str());
+		fprintf(stderr, "       %s sarc w|write <input dir> <output archive>\n", programName.c_str());
 		fprintf(stderr, "       %s sarc l|list <archive>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
@@ -226,17 +221,37 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 		r = util::readFile(fileContents, argv[3]);
 		if (r) return r;
 
-		SARC sarc(fileContents);
-		r = sarc.read();
+		sarc::Reader sarc(fileContents);
+		r = sarc.init();
 		if (r) return r;
 
 		r = sarc.saveAll(argv[4]);
 		if (r) return r;
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s sarc w|write <input dir> <archive>\n", programName.c_str());
+			fprintf(stderr, "usage: %s sarc w|write <input dir> <output archive>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
+
+		fs::path inDir = argv[3];
+		if (!fs::is_directory(inDir)) {
+			return util::Error::DirNotFound;
+		}
+
+		sarc::Writer writer;
+
+		for (const auto& entry : fs::recursive_directory_iterator(inDir)) {
+			fs::path entryPath = entry.path();
+			fs::path relPath = fs::relative(entryPath, inDir);
+
+			std::vector<u8> fileContents;
+			r = util::readFile(fileContents, entryPath);
+			if (r) return r;
+
+			writer.addFile(relPath.string(), fileContents);
+		}
+
+		writer.save(argv[4]);
 	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s sarc l|list <archive>\n", programName.c_str());
@@ -247,12 +262,15 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 		r = util::readFile(fileContents, argv[3]);
 		if (r) return r;
 
-		SARC sarc(fileContents);
-		r = sarc.read();
+		sarc::Reader sarc(fileContents);
+		r = sarc.init();
 		if (r) return r;
 
 		for (const std::string& filename : sarc.getFilenames())
 			printf("%s\n", filename.c_str());
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
 	}
 
 	return 0;
@@ -263,6 +281,7 @@ result_t handle_szs(s32 argc, char* argv[]) {
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s szs r|read <archive> <output dir>\n", programName.c_str());
+		fprintf(stderr, "       %s szs w|write <input dir> <output archive>\n", programName.c_str());
 		fprintf(stderr, "       %s szs l|list <archive>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
@@ -281,12 +300,43 @@ result_t handle_szs(s32 argc, char* argv[]) {
 		r = yaz0::decompress(decompressed, fileContents);
 		if (r) return r;
 
-		SARC sarc(decompressed);
-		r = sarc.read();
+		sarc::Reader sarc(decompressed);
+		r = sarc.init();
 		if (r) return r;
 
 		r = sarc.saveAll(argv[4]);
 		if (r) return r;
+	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
+		if (argc < 5) {
+			fprintf(stderr, "usage: %s szs w|write <input dir> <output archive>\n", programName.c_str());
+			return Error::InvalidArgument;
+		}
+
+		fs::path inDir = argv[3];
+		if (!fs::is_directory(inDir)) {
+			return util::Error::DirNotFound;
+		}
+
+		sarc::Writer writer;
+
+		for (const auto& entry : fs::recursive_directory_iterator(inDir)) {
+			fs::path entryPath = entry.path();
+			fs::path relPath = fs::relative(entryPath, inDir);
+
+			std::vector<u8> fileContents;
+			r = util::readFile(fileContents, entryPath);
+			if (r) return r;
+
+			writer.addFile(relPath.string(), fileContents);
+		}
+
+		std::vector<u8> sarcContents;
+		writer.saveToVec(sarcContents);
+
+		std::vector<u8> szsContents;
+		yaz0::compress(szsContents, sarcContents, 0xc);
+
+		util::writeFile(argv[4], szsContents);
 	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s szs l|list <archive>\n", programName.c_str());
@@ -301,12 +351,15 @@ result_t handle_szs(s32 argc, char* argv[]) {
 		r = yaz0::decompress(decompressed, fileContents);
 		if (r) return r;
 
-		SARC sarc(decompressed);
-		r = sarc.read();
+		sarc::Reader sarc(decompressed);
+		r = sarc.init();
 		if (r) return r;
 
 		for (const std::string& filename : sarc.getFilenames())
 			printf("%s\n", filename.c_str());
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
 	}
 
 	return 0;
@@ -333,6 +386,9 @@ result_t handle_bffnt(s32 argc, char* argv[]) {
 		BFFNT bffnt(fileContents);
 		r = bffnt.read();
 		if (r) return r;
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
 	}
 
 	return 0;
@@ -359,6 +415,9 @@ result_t handle_bntx(s32 argc, char* argv[]) {
 		BNTX bntx(fileContents);
 		r = bntx.read();
 		if (r) return r;
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
 	}
 
 	return 0;
@@ -398,6 +457,9 @@ result_t handle_byml(s32 argc, char* argv[]) {
 			fprintf(stderr, "usage: %s byml w <output file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
 	}
 
 	return 0;
@@ -433,6 +495,9 @@ result_t handle_bfres(s32 argc, char* argv[]) {
 			fprintf(stderr, "usage: %s bfres w <input file>\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
+	} else {
+		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
+		return Error::InvalidArgument;
 	}
 
 	return 0;
@@ -444,10 +509,7 @@ s32 main(s32 argc, char* argv[]) {
 	if (argc < 2) {
 		fprintf(stderr, "usage: %s <format> <options...>\n", programName.c_str());
 		fprintf(stderr, "\tformats: yaz0, sarc, szs, bffnt, bntx, byml, bfres\n");
-		fprintf(
-			stderr, "\nrun `%s <format> --help` for more info on a specific format\n",
-			programName.c_str()
-		);
+		fprintf(stderr, "\nrun `%s <format> --help` for more info on a specific format\n", programName.c_str());
 		return 1;
 	}
 
