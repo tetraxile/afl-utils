@@ -244,6 +244,8 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 			fs::path entryPath = entry.path();
 			fs::path relPath = fs::relative(entryPath, inDir);
 
+			if (entry.is_directory()) continue;
+
 			std::vector<u8> fileContents;
 			r = util::readFile(fileContents, entryPath);
 			if (r) return r;
