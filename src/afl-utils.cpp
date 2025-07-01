@@ -238,6 +238,8 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 			return util::Error::DirNotFound;
 		}
 
+		u32 alignment = argc > 5 ? atoi(argv[5]) : 0x80;
+
 		sarc::Writer writer;
 
 		for (const auto& entry : fs::recursive_directory_iterator(inDir)) {
@@ -253,7 +255,7 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 			writer.addFile(relPath.string(), fileContents);
 		}
 
-		writer.save(argv[4]);
+		writer.save(argv[4], util::ByteOrder::Little, alignment);
 	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s sarc l|list <archive>\n", programName.c_str());
