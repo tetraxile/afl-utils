@@ -6,6 +6,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -37,6 +38,7 @@ struct Result {
 	mutable std::array<bool, 15> scenarioFlag;
 	const u32 scenarioIdx;
 	const std::string itemList;
+	const std::string baseName;
 
 	const std::string unitConfigName;
 	const std::string modelName;
@@ -67,28 +69,28 @@ struct std::hash<Result> {
 
 bool Result::operator==(const Result& other) const {
 	// return std::hash<Result>{}(*this) == std::hash<Result>{}(other);
-	return util::isEqual(stageName, other.stageName) &&
-	       util::isEqual(unitConfigName, other.unitConfigName) &&
-	       util::isEqual(paramConfigName, other.paramConfigName) &&
-	       util::isEqual(modelName, other.modelName) && util::isEqual(objId, other.objId) &&
-	       trans.isEqual(other.trans) && scale.isEqual(other.scale) && rotate.isEqual(other.rotate);
+	return util::isEqual(stageName, other.stageName) && util::isEqual(unitConfigName, other.unitConfigName) &&
+	       util::isEqual(paramConfigName, other.paramConfigName) && util::isEqual(modelName, other.modelName) &&
+	       util::isEqual(objId, other.objId) && trans.isEqual(other.trans) && scale.isEqual(other.scale) &&
+	       rotate.isEqual(other.rotate);
 }
 
 bool endsWith(const std::string& fullString, const std::string& ending) {
 	if (fullString.length() >= ending.length())
-		return 0 ==
-		       fullString.compare(fullString.length() - ending.length(), ending.length(), ending);
+		return 0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending);
 	else
 		return false;
 }
 
 struct SearchEngine {
-	SearchEngine(const Game& game, const Query& query) : mGame(game), mQuery(query) {}
+	SearchEngine(const Game& game, const Query& query, bool isVerbose = false) :
+		mGame(game), mQuery(query), mIsVerbose(isVerbose) {}
 
 	result_t searchAllStages(const fs::path& romfsPath);
 	result_t searchBYML(const std::vector<u8> bymlContents);
 	result_t searchStage(const fs::path& stagePath);
 	result_t searchScenario(const byml::Reader& scenario);
+	result_t searchItem(const byml::Reader& item, std::string_view baseName = "", u32 level = 0);
 	result_t saveResults(const fs::path& outPath) const;
 
 	const Game mGame;
@@ -97,6 +99,7 @@ struct SearchEngine {
 	std::string mCurStageName;
 	u32 mCurScenarioIdx;
 	std::string mCurItemList;
+	bool mIsVerbose;
 };
 
 result_t readVec3f(Vector3f* out, const byml::Reader& reader, const std::string& name) {
@@ -118,6 +121,78 @@ result_t readVec3f(Vector3f* out, const byml::Reader& reader, const std::string&
 	return 0;
 }
 
+result_t SearchEngine::searchItem(const byml::Reader& item, std::string_view baseName, u32 level) {
+	result_t r;
+
+	std::string unitConfigName;
+	r = item.getStringByKey(&unitConfigName, "UnitConfigName");
+	if (r) return r;
+
+	if (level == 0) baseName = unitConfigName;
+
+	byml::Reader unitConfig;
+	r = item.getContainerByKey(&unitConfig, "UnitConfig");
+	if (r) return r;
+
+	std::string paramConfigName;
+	r = unitConfig.getStringByKey(&paramConfigName, "ParameterConfigName");
+	if (r) return r;
+
+	std::string modelName;
+	bool hasModelName = item.tryGetStringByKey(&modelName, "ModelName");
+
+	if (util::isEqual(unitConfigName, mQuery.name) || util::isEqual(paramConfigName, mQuery.name) ||
+	    (hasModelName && util::isEqual(modelName, mQuery.name))) {
+		Vector3f trans;
+		readVec3f(&trans, item, "Translate");
+		Vector3f rotate;
+		readVec3f(&rotate, item, "Rotate");
+		Vector3f scale;
+		readVec3f(&scale, item, "Scale");
+
+		std::string objId;
+		r = item.getStringByKey(&objId, "Id");
+		if (r) return r;
+
+		std::string optModelName = hasModelName ? modelName : "";
+		std::array<bool, 15> scenarioFlag = { false };
+
+		if (mGame == Game::SMO) scenarioFlag[mCurScenarioIdx] = true;
+
+		if (level == 0) baseName = "";
+
+		Result result = { mCurStageName,   scenarioFlag,   mCurScenarioIdx, mCurItemList,
+			              baseName.data(), unitConfigName, optModelName,    paramConfigName,
+			              objId,           trans,          rotate,          scale };
+		mResults.push_back(result);
+
+		return 0;
+	}
+
+	if (mQuery.isRecurse) {
+		byml::Reader linkGroups;
+		r = item.getContainerByKey(&linkGroups, "Links");
+		if (r) return r;
+
+		for (u32 groupIdx = 0; groupIdx < linkGroups.getSize(); groupIdx++) {
+			byml::Reader group;
+			r = linkGroups.getContainerByIdx(&group, groupIdx);
+			if (r) return r;
+
+			for (u32 linkIdx = 0; linkIdx < group.getSize(); linkIdx++) {
+				byml::Reader item;
+				r = group.getContainerByIdx(&item, linkIdx);
+				if (r) return r;
+
+				r = searchItem(item, baseName, level + 1);
+				if (r) return r;
+			}
+		}
+	}
+
+	return 0;
+}
+
 result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 	result_t r;
 
@@ -134,46 +209,8 @@ result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 			byml::Reader item;
 			itemList.getContainerByIdx(&item, itemIdx);
 
-			std::string unitConfigName;
-			r = item.getStringByKey(&unitConfigName, "UnitConfigName");
+			r = searchItem(item);
 			if (r) return r;
-
-			byml::Reader unitConfig;
-			r = item.getContainerByKey(&unitConfig, "UnitConfig");
-			if (r) return r;
-
-			std::string paramConfigName;
-			r = unitConfig.getStringByKey(&paramConfigName, "ParameterConfigName");
-			if (r) return r;
-
-			std::string modelName;
-			bool hasModelName = item.tryGetStringByKey(&modelName, "ModelName");
-
-			if (util::isEqual(unitConfigName, mQuery.name) ||
-			    util::isEqual(paramConfigName, mQuery.name) ||
-			    (hasModelName && util::isEqual(modelName, mQuery.name))) {
-				Vector3f trans;
-				readVec3f(&trans, item, "Translate");
-				Vector3f rotate;
-				readVec3f(&rotate, item, "Rotate");
-				Vector3f scale;
-				readVec3f(&scale, item, "Scale");
-
-				std::string objId;
-				r = item.getStringByKey(&objId, "Id");
-				if (r) return r;
-
-				std::string optModelName = hasModelName ? modelName : "";
-				std::array<bool, 15> scenarioFlag = { false };
-
-				if (mGame == Game::SMO) scenarioFlag[mCurScenarioIdx] = true;
-
-				Result result = { mCurStageName,   scenarioFlag,   mCurScenarioIdx,
-					              mCurItemList,    unitConfigName, optModelName,
-					              paramConfigName, objId,          trans,
-					              rotate,          scale };
-				mResults.push_back(result);
-			}
 		}
 	}
 
@@ -188,6 +225,10 @@ result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 	if (r) return r;
 
 	if (!reader.isExistStringValue(mQuery.name)) return 0;
+
+	if (mIsVerbose) {
+		printf("%s - found string\n", mCurStageName.c_str());
+	}
 
 	if (mGame == Game::SMO) {
 		for (u32 scenarioIdx = 0; scenarioIdx < reader.getSize(); scenarioIdx++) {
@@ -308,6 +349,12 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 
 		printf("found %zu matches\n", collapsedResults.size());
 
+		fprintf(f, "query:\n");
+		fprintf(f, "\tname: %s\n", mQuery.name.c_str());
+		fprintf(f, "\tsearch links?: %s\n", mQuery.isRecurse ? "true" : "false");
+		fprintf(f, "\t# matches: %zu\n", collapsedResults.size());
+		fprintf(f, "\n");
+
 		std::map<std::string, std::vector<Result>> stages;
 		for (const auto& result : collapsedResults) {
 			if (stages.contains(result.stageName))
@@ -320,26 +367,28 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 			fprintf(f, "%s:\n", stageName.c_str());
 			for (const auto& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.modelName) &&
-				    !result.modelName.empty())
+				if (!util::isEqual(result.unitConfigName, result.modelName) && !result.modelName.empty())
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.paramConfigName) &&
-				    !result.paramConfigName.empty())
+				if (!util::isEqual(result.unitConfigName, result.paramConfigName) && !result.paramConfigName.empty())
 					fprintf(f, "\tParameterConfigName: %s\n", result.paramConfigName.c_str());
-				fprintf(
-					f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y,
-					result.trans.z
-				);
+				if (!result.baseName.empty()) fprintf(f, "\tbase object UnitConfigName: %s\n", result.baseName.c_str());
+				fprintf(f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y, result.trans.z);
 				fprintf(f, "\tId: %s\n", result.objId.c_str());
 				fprintf(f, "\titem list: %s\n", result.itemList.c_str());
 				fprintf(f, "\tscenarios: ");
 				for (u32 i = 0; i < result.scenarioFlag.size(); i++)
-					if (result.scenarioFlag[i]) fprintf(f, "%d, ", i + 1);
+					if (result.scenarioFlag[i]) fprintf(f, "%d ", i + 1);
 				fprintf(f, "\n\n");
 			}
 		}
 	} else if (mGame == Game::SM3DW) {
 		printf("found %zu matches\n", mResults.size());
+
+		fprintf(f, "query:\n");
+		fprintf(f, "\tname: %s\n", mQuery.name.c_str());
+		fprintf(f, "\tsearch links?: %s\n", mQuery.isRecurse ? "true" : "false");
+		fprintf(f, "\t# matches: %zu\n", mResults.size());
+		fprintf(f, "\n");
 
 		std::map<std::string, std::vector<Result>> stages;
 		for (const auto& result : mResults) {
@@ -353,16 +402,11 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 			fprintf(f, "%s:\n", stageName.c_str());
 			for (const auto& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.modelName) &&
-				    !result.modelName.empty())
+				if (!util::isEqual(result.unitConfigName, result.modelName) && !result.modelName.empty())
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.paramConfigName) &&
-				    !result.paramConfigName.empty())
+				if (!util::isEqual(result.unitConfigName, result.paramConfigName) && !result.paramConfigName.empty())
 					fprintf(f, "\tParameterConfigName: %s\n", result.paramConfigName.c_str());
-				fprintf(
-					f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y,
-					result.trans.z
-				);
+				fprintf(f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y, result.trans.z);
 				fprintf(f, "\tId: %s\n", result.objId.c_str());
 				fprintf(f, "\titem list: %s\n", result.itemList.c_str());
 				fprintf(f, "\n");
@@ -393,11 +437,13 @@ s32 main(s32 argc, char** argv) {
 	// clang-format off
 
 	bool isShowHelp = false;
+	bool isVerbose = false;
 	auto cli = (
 		opt_value("game", gameName).doc("one of \"smo\" or \"3dw\""),
 		option("-r", "--romfs").doc("path to game's romfs") & value("romfs path", romfsPath),
 		option("-n", "--name").doc("name of object to search for") & value("name", objectName),
 	    option("-o", "--output").doc("path to output file (default: results.txt)") & value("outfile", outPath),
+	    option("-v", "--verbose").set(isVerbose).doc("print more detailed output"),
 	    option("-h", "--help").set(isShowHelp).doc("show this screen")
 	);
 
@@ -441,9 +487,9 @@ s32 main(s32 argc, char** argv) {
 		std::getline(std::cin, objectName);
 	}
 
-	Query query = { .name = objectName, .isRecurse = false };
+	Query query = { .name = objectName, .isRecurse = true };
 
-	SearchEngine engine(game, query);
+	SearchEngine engine(game, query, isVerbose);
 
 	result_t r = engine.searchAllStages(romfsPath);
 
