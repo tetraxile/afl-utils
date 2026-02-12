@@ -156,6 +156,7 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str());
 		fprintf(stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n", programName.c_str());
+		fprintf(stderr, "       %*s         (default alignment: 0x80)\n", (s32)programName.length(), "");
 		return Error::InvalidArgument;
 	}
 
@@ -206,7 +207,8 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s sarc r|read <archive> <output dir>\n", programName.c_str());
-		fprintf(stderr, "       %s sarc w|write <input dir> <output archive>\n", programName.c_str());
+		fprintf(stderr, "       %s sarc w|write <input dir> <output archive> [alignment]\n", programName.c_str());
+		fprintf(stderr, "       %*s         (default alignment: 0x80)\n", (s32)programName.length(), "");
 		fprintf(stderr, "       %s sarc l|list <archive>\n", programName.c_str());
 		return Error::InvalidArgument;
 	}
@@ -229,7 +231,7 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 		if (r) return r;
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
-			fprintf(stderr, "usage: %s sarc w|write <input dir> <output archive>\n", programName.c_str());
+			fprintf(stderr, "usage: %s sarc w|write <input dir> <output archive> [alignment]\n", programName.c_str());
 			return Error::InvalidArgument;
 		}
 
