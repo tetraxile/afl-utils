@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <filesystem>
+#include <format>
 #include <iostream>
 #include <map>
 #include <set>
@@ -31,6 +32,144 @@ enum class Game {
 struct Query {
 	const std::string name;
 	const bool isRecurse = false;
+	const std::string keyQueryName;
+};
+
+struct Value {
+	byml::NodeType type;
+
+	union {
+		std::string_view val_string;
+		bool val_bool;
+		u32 val_u32;
+		s32 val_s32;
+		f32 val_f32;
+		u64 val_u64;
+		s64 val_s64;
+		f64 val_f64;
+	};
+
+	Value() { setNull(); }
+
+	void setString(const std::string& val) {
+		type = byml::NodeType::String;
+		val_string = val;
+	}
+
+	void setBool(bool val) {
+		type = byml::NodeType::Bool;
+		val_bool = val;
+	}
+
+	void setU32(u32 val) {
+		type = byml::NodeType::U32;
+		val_u32 = val;
+	}
+
+	void setS32(s32 val) {
+		type = byml::NodeType::S32;
+		val_s32 = val;
+	}
+
+	void setF32(f32 val) {
+		type = byml::NodeType::F32;
+		val_f32 = val;
+	}
+
+	void setU64(u64 val) {
+		type = byml::NodeType::U64;
+		val_u64 = val;
+	}
+
+	void setS64(s64 val) {
+		type = byml::NodeType::S64;
+		val_s64 = val;
+	}
+
+	void setF64(f64 val) {
+		type = byml::NodeType::F64;
+		val_f64 = val;
+	}
+
+	void setNull() {
+		type = byml::NodeType::Null;
+		val_u32 = 0;
+	}
+
+	void setByKey(const byml::Reader& container, const std::string& key) {
+		byml::NodeType queryType;
+		if (container.getTypeByKey(&queryType, key)) {
+			std::string valString;
+			bool valBool;
+			u32 valU32;
+			s32 valS32;
+			f32 valF32;
+			u64 valU64;
+			s64 valS64;
+			f64 valF64;
+
+			switch (queryType) {
+			case byml::NodeType::String:
+				container.getStringByKey(&valString, key);
+				setString(valString);
+				break;
+			case byml::NodeType::Bool:
+				container.getBoolByKey(&valBool, key);
+				setBool(valBool);
+				break;
+			case byml::NodeType::U32:
+				container.getU32ByKey(&valU32, key);
+				setU32(valU32);
+				break;
+			case byml::NodeType::S32:
+				container.getS32ByKey(&valS32, key);
+				setS32(valS32);
+				break;
+			case byml::NodeType::F32:
+				container.getF32ByKey(&valF32, key);
+				setF32(valF32);
+				break;
+			case byml::NodeType::U64:
+				container.getU64ByKey(&valU64, key);
+				setU64(valU64);
+				break;
+			case byml::NodeType::S64:
+				container.getS64ByKey(&valS64, key);
+				setS64(valS64);
+				break;
+			case byml::NodeType::F64:
+				container.getF64ByKey(&valF64, key);
+				setF64(valF64);
+				break;
+
+			case byml::NodeType::Array:
+			case byml::NodeType::Hash:
+			case byml::NodeType::StringTable:
+			case byml::NodeType::Null: setNull(); break;
+			}
+		}
+	}
+
+	std::string toString() const {
+		if (type == byml::NodeType::String)
+			return std::format("\"{}\"", val_string);
+		else if (type == byml::NodeType::S32)
+			return std::format("{}", val_s32);
+		else if (type == byml::NodeType::U32)
+			return std::format("{}", val_u32);
+		else if (type == byml::NodeType::F32)
+			return std::format("{}", val_f32);
+		else if (type == byml::NodeType::S64)
+			return std::format("{}", val_s64);
+		else if (type == byml::NodeType::U64)
+			return std::format("{}", val_u64);
+		else if (type == byml::NodeType::F64)
+			return std::format("{}", val_f64);
+		else if (type == byml::NodeType::Bool)
+			return val_bool ? "true" : "false";
+		else
+			return "null";
+	}
 };
 
 struct Result {
@@ -47,6 +186,8 @@ struct Result {
 	const Vector3f trans;
 	const Vector3f rotate;
 	const Vector3f scale;
+
+	const Value queryValue;
 
 	bool operator==(const Result& other) const;
 };
@@ -161,9 +302,24 @@ result_t SearchEngine::searchItem(const byml::Reader& item, std::string_view bas
 
 		if (level == 0) baseName = "";
 
-		Result result = { mCurStageName,   scenarioFlag,   mCurScenarioIdx, mCurItemList,
-			              baseName.data(), unitConfigName, optModelName,    paramConfigName,
-			              objId,           trans,          rotate,          scale };
+		Value queryValue;
+		if (!mQuery.keyQueryName.empty()) {
+			queryValue.setByKey(item, mQuery.keyQueryName);
+		};
+
+		Result result = { .stageName = mCurStageName,
+			              .scenarioFlag = scenarioFlag,
+			              .scenarioIdx = mCurScenarioIdx,
+			              .itemList = mCurItemList,
+			              .baseName = baseName.data(),
+			              .unitConfigName = unitConfigName,
+			              .modelName = optModelName,
+			              .paramConfigName = paramConfigName,
+			              .objId = objId,
+			              .trans = trans,
+			              .rotate = rotate,
+			              .scale = scale,
+			              .queryValue = queryValue };
 		mResults.push_back(result);
 
 		return 0;
@@ -353,6 +509,9 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 		fprintf(f, "\tname: %s\n", mQuery.name.c_str());
 		fprintf(f, "\tsearch links?: %s\n", mQuery.isRecurse ? "true" : "false");
 		fprintf(f, "\t# matches: %zu\n", collapsedResults.size());
+		if (!mQuery.keyQueryName.empty()) {
+			fprintf(f, "\tquery key: %s\n", mQuery.keyQueryName.c_str());
+		}
 		fprintf(f, "\n");
 
 		std::map<std::string, std::vector<Result>> stages;
@@ -367,17 +526,25 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 			fprintf(f, "%s:\n", stageName.c_str());
 			for (const auto& result : results) {
 				fprintf(f, "\tUnitConfigName: %s\n", result.unitConfigName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.modelName) && !result.modelName.empty())
+				if (!util::isEqual(result.unitConfigName, result.modelName) && !result.modelName.empty()) {
 					fprintf(f, "\tModelName: %s\n", result.modelName.c_str());
-				if (!util::isEqual(result.unitConfigName, result.paramConfigName) && !result.paramConfigName.empty())
+				}
+				if (!util::isEqual(result.unitConfigName, result.paramConfigName) && !result.paramConfigName.empty()) {
 					fprintf(f, "\tParameterConfigName: %s\n", result.paramConfigName.c_str());
-				if (!result.baseName.empty()) fprintf(f, "\tbase object UnitConfigName: %s\n", result.baseName.c_str());
+				}
+				if (!result.baseName.empty()) {
+					fprintf(f, "\tbase object UnitConfigName: %s\n", result.baseName.c_str());
+				}
 				fprintf(f, "\tTranslate: (%.3f, %.3f, %.3f)\n", result.trans.x, result.trans.y, result.trans.z);
 				fprintf(f, "\tId: %s\n", result.objId.c_str());
+				if (!mQuery.keyQueryName.empty()) {
+					fprintf(f, "\t%s: %s\n", mQuery.keyQueryName.c_str(), result.queryValue.toString().c_str());
+				}
 				fprintf(f, "\titem list: %s\n", result.itemList.c_str());
 				fprintf(f, "\tscenarios: ");
-				for (u32 i = 0; i < result.scenarioFlag.size(); i++)
+				for (u32 i = 0; i < result.scenarioFlag.size(); i++) {
 					if (result.scenarioFlag[i]) fprintf(f, "%d ", i + 1);
+				}
 				fprintf(f, "\n\n");
 			}
 		}
@@ -432,6 +599,7 @@ s32 main(s32 argc, char** argv) {
 	std::string gameName;
 	std::string romfsPath;
 	std::string objectName;
+	std::string keyQueryName;
 	std::string outPath = "results.txt";
 
 	// clang-format off
@@ -487,7 +655,12 @@ s32 main(s32 argc, char** argv) {
 		std::getline(std::cin, objectName);
 	}
 
-	Query query = { .name = objectName, .isRecurse = true };
+	if (keyQueryName.empty()) {
+		printf("query key?: ");
+		std::getline(std::cin, keyQueryName);
+	}
+
+	Query query = { .name = objectName, .isRecurse = true, .keyQueryName = keyQueryName };
 
 	SearchEngine engine(game, query, isVerbose);
 

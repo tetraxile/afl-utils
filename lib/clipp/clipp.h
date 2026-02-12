@@ -45,6 +45,11 @@
 #include <utility>
 #include <iterator>
 #include <functional>
+#include <type_traits>
+
+#if defined(__cpp_lib_optional)
+#include <optional>
+#endif
 
 
 /*************************************************************************//**
@@ -144,6 +149,27 @@ using match_function  = std::function<subrange(const arg_string&)>;
 
 /*************************************************************************//**
  *
+ * @brief type txt (NOT FOR DIRECT USE IN CLIENT CODE!)
+ *        no interface guarantees; might be changed or removed in the future
+ *
+ *****************************************************************************/
+namespace txt {
+	inline bool isspace(char c) {
+		return (c >= 0) && std::isspace(c);
+	}
+	inline bool isdigit(char c) {
+		return (c >= 0) && std::isdigit(c);
+	}
+	inline bool isalnum(char c) {
+		return (c >= 0) && std::isalnum(c);
+	}
+	inline bool isalpha(char c) {
+		return (c >= 0) && std::isalpha(c);
+	}
+}
+
+/*************************************************************************//**
+ *
  * @brief type traits (NOT FOR DIRECT USE IN CLIENT CODE!)
  *        no interface guarantees; might be changed or removed in the future
  *
@@ -155,12 +181,124 @@ namespace traits {
  * @brief function (class) signature type trait
  *
  *****************************************************************************/
+
+/*
+ * Ripped (with minor modifications)
+ * from https://github.com/pfultz2/HIP/tree/d49d87d40b44cfa4fe13106891a6a048cb7921d7/include/hip/hcc_detail
+ */
+#if defined(__cpp_lib_is_invocable) && !defined(CLIPP_HAS_INVOCABLE)
+#   define CLIPP_HAS_INVOCABLE __cpp_lib_is_invocable
+#endif
+#if defined(__cpp_lib_result_of_sfinae) && !defined(CLIPP_HAS_RESULT_OF_SFINAE)
+#   define CLIPP_HAS_RESULT_OF_SFINAE __cpp_lib_result_of_sfinae
+#endif
+
+#ifndef CLIPP_HAS_INVOCABLE
+#define CLIPP_HAS_INVOCABLE 0
+#endif
+
+#ifndef CLIPP_HAS_RESULT_OF_SFINAE
+#define CLIPP_HAS_RESULT_OF_SFINAE 0
+#endif
+
+//namespace std {  // TODO: these should be removed as soon as possible.
+//#if (__cplusplus < 201406L)
+//#if (__cplusplus < 201402L)
+//template <bool cond, typename T = void>
+//using enable_if_t = typename enable_if<cond, T>::type;
+//template <bool cond, typename T, typename U>
+//using conditional_t = typename conditional<cond, T, U>::type;
+//template <typename T>
+//using decay_t = typename decay<T>::type;
+//template <FunctionalProcedure F, typename... Ts>
+//using result_of_t = typename result_of<F(Ts...)>::type;
+//template <typename T>
+//using remove_reference_t = typename remove_reference<T>::type;
+//#endif
+//#endif
+//}  // namespace std
+
+template <typename...>
+using void_t_ = void;
+
+template <typename F, typename... Ts>
+struct is_callable_impl;
+
+#if CLIPP_HAS_INVOCABLE
+template <typename F, typename... Ts>
+struct is_callable_impl<F(Ts...)> : std::is_invocable<F, Ts...> {};
+#elif CLIPP_HAS_RESULT_OF_SFINAE
+template <typename, typename = void>
+struct is_callable_impl : std::false_type {};
+
+template <FunctionalProcedure F, typename... Ts>
+struct is_callable_impl<F(Ts...), void_t_<typename std::result_of<F(Ts...)>::type > > : std::true_type {};
+#else
+template <class Base, class T, class Derived>
+auto simple_invoke(T Base::*pmd, Derived&& ref)
+-> decltype(static_cast<Derived&&>(ref).*pmd);
+
+template <class PMD, class Pointer>
+auto simple_invoke(PMD&& pmd, Pointer&& ptr)
+-> decltype((*static_cast<Pointer&&>(ptr)).*static_cast<PMD&&>(pmd));
+
+template <class Base, class T, class Derived>
+auto simple_invoke(T Base::*pmd, const std::reference_wrapper<Derived>& ref)
+-> decltype(ref.get().*pmd);
+
+template <class Base, class T, class Derived, class... Args>
+auto simple_invoke(T Base::*pmf, Derived&& ref, Args&&... args)
+-> decltype((static_cast<Derived&&>(ref).*pmf)(static_cast<Args&&>(args)...));
+
+template <class PMF, class Pointer, class... Args>
+auto simple_invoke(PMF&& pmf, Pointer&& ptr, Args&&... args)
+-> decltype(((*static_cast<Pointer&&>(ptr)).*static_cast<PMF&&>(pmf))(static_cast<Args&&>(args)...));
+
+template <class Base, class T, class Derived, class... Args>
+auto simple_invoke(T Base::*pmf, const std::reference_wrapper<Derived>& ref, Args&&... args)
+-> decltype((ref.get().*pmf)(static_cast<Args&&>(args)...));
+
+template<class F, class... Ts>
+auto simple_invoke(F&& f, Ts&&... xs)
+-> decltype(f(static_cast<Ts&&>(xs)...));
+
+template <typename, typename = void>
+struct is_callable_impl : std::false_type {};
+
+template <FunctionalProcedure F, typename... Ts>
+struct is_callable_impl<F(Ts...), void_t_<decltype(simple_invoke(std::declval<F>(), std::declval<Ts>()...))> >
+    : std::true_type {};
+
+#endif /* CLIPP_HAS_RESULT_OF_SFINAE */
+
+template <typename Call>
+struct is_invocable : is_callable_impl<Call> {};
+
+/** END of is_invocable */
+
+
+template <class Fn, class... Args>
+struct invoke_result {
+#if defined(__cpp_lib_is_invocable)
+#if !defined(_MSC_VER)
+    using type = typename std::invoke_result<Fn, Args...>::type; // First available in c++17.
+#endif
+#else
+    using type = typename std::result_of<Fn(Args...)>::type; // Deprecated in c++17; removed in c++20.
+#endif
+};
+
 template<class Fn, class Ret, class... Args>
 constexpr auto
 check_is_callable(int) -> decltype(
     std::declval<Fn>()(std::declval<Args>()...),
+#if defined(__cpp_lib_is_invocable)
     std::integral_constant<bool,
-        std::is_same<Ret,typename std::invoke_result<Fn, Args...>::type>::value>{} );
+        std::is_same<Ret,typename std::invoke_result_t<Fn, Args...>>::value>{} );
+#else
+    std::integral_constant<bool,
+        std::is_same<Ret,typename std::result_of<Fn(Args...)>::type>::value>{} );
+#endif
 
 template<class,class,class...>
 constexpr auto
@@ -170,8 +308,13 @@ template<class Fn, class Ret>
 constexpr auto
 check_is_callable_without_arg(int) -> decltype(
     std::declval<Fn>()(),
+#if defined(__cpp_lib_is_invocable)
     std::integral_constant<bool,
-        std::is_same<Ret,typename std::invoke_result<Fn>::type>::value>{} );
+        std::is_same<Ret,typename std::invoke_result_t<Fn>>::value>{} );
+#else
+    std::integral_constant<bool,
+        std::is_same<Ret,typename std::result_of<Fn>::type>::value>{} );
+#endif
 
 template<class,class>
 constexpr auto
@@ -298,9 +441,8 @@ inline bool
 fwd_to_unsigned_int(const char*& s)
 {
     if(!s) return false;
-    for(; std::isspace(*s); ++s);
+    for(; txt::isspace(*s); ++s);
     if(!s[0] || s[0] == '-') return false;
-    if(s[0] == '-') return false;
     return true;
 }
 
@@ -325,7 +467,9 @@ struct limits_clamped {
 
 template<class T, class V>
 struct limits_clamped<T,V,false> {
-    static T from(const V& v) { return T(v); }
+    static T from(const V& v) {
+		return T(v);
+	}
 };
 
 
@@ -471,7 +615,14 @@ struct make<std::string> {
     }
 };
 
-
+#if defined(__cpp_lib_optional)
+template<class T>
+struct make<std::optional<T>> {
+  static inline std::optional<T> from(const char* s) {
+    return std::make_optional<T>(make<T>::from(s));
+  }
+};
+#endif
 
 /*************************************************************************//**
  *
@@ -694,7 +845,7 @@ trimr(std::basic_string<C,T,A>& s)
 
     s.erase(
         std::find_if_not(s.rbegin(), s.rend(),
-                         [](char c) { return std::isspace(c);} ).base(),
+                         [](char c) { return txt::isspace(c);} ).base(),
         s.end() );
 }
 
@@ -713,7 +864,7 @@ triml(std::basic_string<C,T,A>& s)
     s.erase(
         s.begin(),
         std::find_if_not(s.begin(), s.end(),
-                         [](char c) { return std::isspace(c);})
+                         [](char c) { return txt::isspace(c);})
     );
 }
 
@@ -744,7 +895,7 @@ remove_ws(std::basic_string<C,T,A>& s)
     if(s.empty()) return;
 
     s.erase(std::remove_if(s.begin(), s.end(),
-                           [](char c) { return std::isspace(c); }),
+                           [](char c) { return txt::isspace(c); }),
             s.end() );
 }
 
@@ -967,16 +1118,16 @@ first_number_match(std::basic_string<C,T,A> s,
             }
             else if(exp != string_t::npos && (exp+1) == j) {
                 //only sign or digit after exponent separator
-                if(s[j] != '+' && s[j] != '-' && !std::isdigit(s[j])) break;
+                if(s[j] != '+' && s[j] != '-' && !txt::isdigit(s[j])) break;
             }
-            else if(!std::isdigit(s[j])) {
+            else if(!txt::isdigit(s[j])) {
                 break;
             }
         }
     }
 
     //if length == 1 then must be a digit
-    if(j-i == 1 && !std::isdigit(s[i])) return subrange{};
+    if(j-i == 1 && !txt::isdigit(s[i])) return subrange{};
 
     return subrange{i,j-i};
 }
@@ -1010,12 +1161,12 @@ first_integer_match(std::basic_string<C,T,A> s,
         }
         else {
             sep = false;
-            if(!std::isdigit(s[j])) break;
+            if(!txt::isdigit(s[j])) break;
         }
     }
 
     //if length == 1 then must be a digit
-    if(j-i == 1 && !std::isdigit(s[i])) return subrange{};
+    if(j-i == 1 && !txt::isdigit(s[i])) return subrange{};
 
     return subrange{i,j-i};
 }
@@ -1406,9 +1557,7 @@ public:
     //---------------------------------------------------------------
     /** @brief executes all argument actions */
     void execute_actions(const arg_string& arg) const {
-        int i = 0;
         for(const auto& a : argActions_) {
-            ++i;
             a(arg.c_str());
         }
     }
@@ -1621,7 +1770,7 @@ nonempty(const arg_string& s) {
 inline bool
 alphanumeric(const arg_string& s) {
     if(s.empty()) return false;
-    return std::all_of(s.begin(), s.end(), [](char c) {return std::isalnum(c); });
+    return std::all_of(s.begin(), s.end(), [](char c) {return txt::isalnum(c); });
 }
 
 
@@ -1634,7 +1783,7 @@ alphanumeric(const arg_string& s) {
  *****************************************************************************/
 inline bool
 alphabetic(const arg_string& s) {
-    return std::all_of(s.begin(), s.end(), [](char c) {return std::isalpha(c); });
+    return std::all_of(s.begin(), s.end(), [](char c) {return txt::isalpha(c); });
 }
 
 
@@ -2212,9 +2361,12 @@ value(const doc_string& label, Targets&&... tgts)
         .required(true).blocking(true).repeatable(false);
 }
 
-template<class Filter, class... Targets, class = typename std::enable_if<
-    traits::is_callable<Filter,bool(const char*)>::value ||
-    traits::is_callable<Filter,subrange(const char*)>::value>::type>
+template<class Filter, class... Targets,
+    class = typename std::enable_if<traits::is_invocable<Filter(const char *)>::value>::type,
+    class = typename std::enable_if<
+    (traits::is_callable<Filter,bool(const char*)>::value ||
+    traits::is_callable<Filter,subrange(const char*)>::value)
+    >::type>
 inline parameter
 value(Filter&& filter, doc_string label, Targets&&... tgts)
 {
@@ -2811,7 +2963,7 @@ public:
             context context_;
         public:
             int level() const noexcept { return level_; }
-            const child* param() const noexcept { return &(*context_.cur); }
+            const child* param() const noexcept { return context_.parent ? &(*context_.cur) : nullptr; }
         };
 
         depth_first_traverser() = default;
@@ -2967,7 +3119,7 @@ public:
         depth_first_traverser&
         operator ++ () {
             if(stack_.empty()) return *this;
-            //at group -> decend into group
+            //at group -> descend into group
             if(stack_.back().cur->is_group()) {
                 stack_.emplace_back(stack_.back().cur->as_group());
             }
@@ -4258,7 +4410,7 @@ private:
             //but if the current scope is the first element, then we are
             //conceptually at a position 'before' the group
             repeatGroupStarted_ = scopes_.empty() || (
-                    newrg == pos_.root() &&
+                    newrg == pos_.root() && !pos_.root()->empty() &&
                     scopes_.top().param() == &(*pos_.root()->begin()) );
         }
         repeatGroupContinues_ = repeatGroupStarted_;
@@ -4440,8 +4592,8 @@ longest_prefix_match(scoped_dfs_traverser pos, const arg_string& arg,
                         return match_t{arg, std::move(pos)};
                     }
                     else if(match.length() > longest.length()) {
-                        longest = match_t{arg.substr(match.at(), match.length()), 
-                                          pos};
+                        longest = match_t{arg.substr(match.at(), match.length()),
+                                          std::move(pos)};
                     }
                 }
             }
@@ -4848,7 +5000,7 @@ private:
             matches.push_back(std::move(match));
         }
 
-        if(!arg.empty() || matches.empty()) return false;
+        if(matches.empty()) return false;
 
         if(!parse.missCand_.empty()) return false;
         for(const auto& a : parse.args_) if(a.any_error()) return false;
@@ -4959,9 +5111,9 @@ private:
         //go through all exclusive groups of matching pattern
         for(const auto& m : match.stack()) {
             if(m.parent->exclusive()) {
-                for(auto i = int(missCand_.size())-1; i >= 0; --i) {
+                for(auto i = static_cast<int>(missCand_.size())-1; i >= 0; --i) {
                     bool removed = false;
-                    for(const auto& c : missCand_[i].pos.stack()) {
+                    for(const auto& c : missCand_[static_cast<std::size_t>(i)].pos.stack()) {
                         //sibling within same exclusive group => discard
                         if(c.parent == m.parent && c.cur != m.cur) {
                             missCand_.erase(missCand_.begin() + i);
@@ -4972,9 +5124,9 @@ private:
                     }
                     //remove miss candidates only within current repeat cycle
                     if(i > 0 && removed) {
-                        if(missCand_[i-1].startsRepeatGroup) break;
+                        if(missCand_[static_cast<std::size_t>(i-1)].startsRepeatGroup) break;
                     } else {
-                        if(missCand_[i].startsRepeatGroup) break;
+                        if(missCand_[static_cast<std::size_t>(i)].startsRepeatGroup) break;
                     }
                 }
             }
@@ -5103,8 +5255,8 @@ public:
      */
     arg_mappings::size_type
     unmapped_args_count() const noexcept {
-        return std::count_if(arg2param_.begin(), arg2param_.end(),
-            [](const arg_mapping& a){ return !a.param(); });
+        return static_cast<arg_mappings::size_type>(std::count_if(arg2param_.begin(), arg2param_.end(),
+            [](const arg_mapping& a){ return !a.param(); }));
     }
 
     /** @brief returns if any argument could only be matched by an
@@ -5177,14 +5329,14 @@ void sanitize_args(arg_list& args)
 
     for(auto i = begin(args)+1; i != end(args); ++i) {
         if(i != begin(args) && i->size() > 1 &&
-            i->find('.') == 0 && std::isdigit((*i)[1]) )
+            i->find('.') == 0 && txt::isdigit((*i)[1]) )
         {
             //find trailing digits in previous arg
             using std::prev;
             auto& prv = *prev(i);
             auto fstDigit = std::find_if_not(prv.rbegin(), prv.rend(),
                 [](arg_string::value_type c){
-                    return std::isdigit(c);
+                    return txt::isdigit(c);
                 }).base();
 
             //handle leading sign
@@ -5322,7 +5474,7 @@ parse(InputIterator first, InputIterator last, const group& cli)
  *
  *****************************************************************************/
 inline parsing_result
-parse(const int argc, char* argv[], const group& cli, arg_index offset = 1)
+parse(const int argc, const char** argv, const group& cli, arg_index offset = 1)
 {
     arg_list args;
     if(offset < argc) args.assign(argv+offset, argv+argc);
@@ -5330,6 +5482,16 @@ parse(const int argc, char* argv[], const group& cli, arg_index offset = 1)
     return detail::parse_and_execute(args, cli, offset);
 }
 
+/*************************************************************************//**
+ *
+ * @brief parses the standard array of command line arguments; omits argv[0]
+ *
+ *****************************************************************************/
+inline parsing_result
+parse(const int argc, char** argv, const group& cli, arg_index offset = 1)
+{
+	return parse(argc, (const char **)argv, cli, offset);
+}
 
 
 
@@ -5904,7 +6066,7 @@ private:
     template<class Iter>
     bool only_whitespace(Iter first, Iter last) const {
         return last == std::find_if_not(first, last,
-                [](char_type c) { return std::isspace(c); });
+                [](char_type c) { return txt::isspace(c); });
     }
 
     /** @brief write any object */
@@ -5960,7 +6122,7 @@ private:
         if(at_begin_of_line()) {
             //discard whitespace, it we start a new line
             first = std::find_if(first, last,
-                        [](char_type c) { return !std::isspace(c); });
+                        [](char_type c) { return !txt::isspace(c); });
             if(first == last) return;
         }
 
@@ -5970,11 +6132,11 @@ private:
         if(n > m) {
             //break before word, if break is mid-word
             auto breakat = first + m;
-            while(breakat > first && !std::isspace(*breakat)) --breakat;
+            while(breakat > first && !txt::isspace(*breakat)) --breakat;
             //could not find whitespace before word -> try after the word
-            if(!std::isspace(*breakat) && breakat == first) {
+            if(!txt::isspace(*breakat) && breakat == first) {
                 breakat = std::find_if(first+m, last,
-                          [](char_type c) { return std::isspace(c); });
+                          [](char_type c) { return txt::isspace(c); });
             }
             if(breakat > first) {
                 if(curCol_ < 1) ++totalNonBlankLines_;
@@ -6239,7 +6401,7 @@ private:
                         os << buf.str();
                         if(i < group.size()-1) {
                             if(cur.line > 0) {
-                                os << string(fmt_.line_spacing(), '\n');
+                                os << string(static_cast<std::size_t>(fmt_.line_spacing()), '\n');
                             }
                             ++cur.line;
                             os << '\n';
@@ -6312,7 +6474,7 @@ private:
 
             if(surrAlt) lbl += fmt_.alternative_flags_prefix();
             bool sep = false;
-            for(int i = 0; i < n; ++i) {
+            for(std::size_t i = 0; i < static_cast<std::size_t>(n); ++i) {
                 if(sep) {
                     if(cur.is_singleton())
                         lbl += fmt_.alternative_group_separator();
@@ -6715,9 +6877,9 @@ private:
         const auto& flags = param.flags();
         if(!flags.empty()) {
             lbl += flags[0];
-            const int n = std::min(fmt.max_flags_per_param_in_doc(),
-                                   int(flags.size()));
-            for(int i = 1; i < n; ++i) {
+            const auto n = static_cast<std::size_t>(std::min(fmt.max_flags_per_param_in_doc(),
+                                   int(flags.size())));
+            for(std::size_t i = 1; i < n; ++i) {
                 lbl += fmt.flag_separator() + flags[i];
             }
         }
@@ -6815,17 +6977,41 @@ public:
 
     //---------------------------------------------------------------
     man_page& program_name(const string& n) {
-        progName_ = n;
+        progName_ = program_basename(n);
         return *this;
     }
     man_page& program_name(string&& n) {
-        progName_ = std::move(n);
+        progName_ = program_basename(n);
         return *this;
     }
     const string& program_name() const noexcept {
         return progName_;
     }
 
+	static const string program_basename(const string& progname) {
+		// clip off the exe path, i.e. execute equivalent of basename(progname, ".exe")
+		auto sep_pos = progname.find_last_of(":/\\");
+		auto end_pos = progname.size();
+		const doc_string exe = ".exe";
+		if (exe.size() < progname.size() && std::equal(exe.rbegin(), exe.rend(), progname.rbegin()))
+		{
+			end_pos -= exe.size();
+		}
+		if (sep_pos == doc_string::npos)
+		{
+			sep_pos = 0;
+		}
+		else
+		{
+			sep_pos++;
+		}
+
+		if (sep_pos > 0 || end_pos < progname.size())
+		{
+			return progname.substr(sep_pos, end_pos - sep_pos);
+		}
+		return progname;
+	}
 
     //---------------------------------------------------------------
     man_page& section_row_spacing(int rows) {
@@ -6855,7 +7041,8 @@ make_man_page(const group& cli,
               const doc_formatting& fmt = doc_formatting{})
 {
     man_page man;
-    man.append_section("SYNOPSIS", usage_lines(cli,progname,fmt).str());
+	man.program_name(progname);
+    man.append_section("SYNOPSIS", usage_lines(cli, man.program_name(),fmt).str());
     man.append_section("OPTIONS", documentation(cli,fmt).str());
     return man;
 }
@@ -6872,7 +7059,7 @@ OStream&
 operator << (OStream& os, const man_page& man)
 {
     bool first = true;
-    const auto secSpc = doc_string(man.section_row_spacing() + 1, '\n');
+    const auto secSpc = doc_string(static_cast<std::size_t>(man.section_row_spacing()) + std::size_t(1), '\n');
     for(const auto& section : man) {
         if(!section.content().empty()) {
             if(first) first = false; else os << secSpc;
@@ -7003,7 +7190,7 @@ void print(OStream& os, const pattern& param, int level = 0)
 template<class OStream>
 void print(OStream& os, const group& g, int level)
 {
-    auto indent = doc_string(4*level, ' ');
+    auto indent = doc_string(static_cast<std::size_t>(4*level), ' ');
     os << indent;
     if(g.blocking()) os << '~';
     if(g.joinable()) os << 'J';
