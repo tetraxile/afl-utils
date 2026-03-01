@@ -2,14 +2,15 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <hk/diag/diag.h>
 #include <iostream>
 
 #include "afl/bffnt.h"
-#include "afl/bfres.h"
+#include "afl/bfres/reader.h"
 #include "afl/bntx.h"
 #include "afl/byml/reader.h"
 #include "afl/byml/writer.h"
-#include "afl/result.h"
+#include "afl/results.h"
 #include "afl/sarc/reader.h"
 #include "afl/sarc/writer.h"
 #include "afl/util.h"
@@ -17,81 +18,83 @@
 
 namespace fs = std::filesystem;
 
-enum Error : result_t {
-	InvalidArgument = 0x1001,
-};
-
 std::string programName;
 
 std::string print_byml(const byml::Reader& node, s32 level = 0) {
-	// std::string indent(level, '\t');
+	std::string indent(level, '\t');
 	std::string out;
 
 	if (node.getType() == byml::NodeType::Array) {
-		out += "[";
+		out += "[\n";
 		for (u32 i = 0; i < node.getSize(); i++) {
 			byml::NodeType childType;
 			node.getTypeByIdx(&childType, i);
+			out += "\t";
 			if (childType == byml::NodeType::Hash) {
 				byml::Reader container;
 				node.getContainerByIdx(&container, i);
+				out += indent;
 				out += print_byml(container, level + 1);
 			} else if (childType == byml::NodeType::Array) {
 				byml::Reader container;
 				node.getContainerByIdx(&container, i);
+				out += indent;
 				out += print_byml(container, level + 1);
 			} else if (childType == byml::NodeType::String) {
 				std::string str;
 				node.getStringByIdx(&str, i);
-				out += std::format("\"{}\"", str);
+				out += std::format("{}\"{}\"", indent, str);
 			} else if (childType == byml::NodeType::Bool) {
 				bool value;
 				node.getBoolByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::S32) {
 				s32 value;
 				node.getS32ByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::U32) {
 				u32 value;
 				node.getU32ByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::F32) {
 				f32 value;
 				node.getF32ByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::S64) {
 				s64 value;
 				node.getS64ByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::U64) {
 				u64 value;
 				node.getU64ByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::F64) {
 				f64 value;
 				node.getF64ByIdx(&value, i);
-				out += std::format("{}", value);
+				out += std::format("{}{}", indent, value);
 			} else if (childType == byml::NodeType::Bool) {
 				bool value;
 				node.getBoolByIdx(&value, i);
-				out += value ? "true" : "false";
+				out += std::format("{}{}", indent, value ? "true" : "false");
 			} else if (childType == byml::NodeType::Null) {
-				out += "null";
+				out += std::format("{}null", indent);
 			} else {
 				fprintf(stderr, "error: node type %02x\n", (u8)childType);
 				break;
 			}
-			if (i != node.getSize() - 1) out += ", ";
+			if (i != node.getSize() - 1)
+				out += ",\n";
+			else
+				out += "\n";
 		}
-		out += "]";
+		out += std::format("{}]", indent);
 	} else if (node.getType() == byml::NodeType::Hash) {
-		out += "{";
+		out += "{\n";
 		for (u32 i = 0; i < node.getSize(); i++) {
 			byml::NodeType childType;
 			node.getTypeByIdx(&childType, i);
 			std::string key = node.getKeyByIdx(i);
-			out += std::format("\"{}\": ", key);
+			out += std::format("\t{}\"{}\": ", indent, key);
 			if (childType == byml::NodeType::Hash) {
 				byml::Reader container;
 				node.getContainerByIdx(&container, i);
@@ -142,37 +145,36 @@ std::string print_byml(const byml::Reader& node, s32 level = 0) {
 				fprintf(stderr, "error: node type %02x\n", (u8)childType);
 				break;
 			}
-			if (i != node.getSize() - 1) out += ", ";
+			if (i != node.getSize() - 1)
+				out += ",\n";
+			else
+				out += "\n";
 		}
-		out += "}";
+		out += std::format("{}}}", indent);
 	}
 
 	return out;
 }
 
-result_t handle_yaz0(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_yaz0(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str());
 		fprintf(stderr, "       %s yaz0 w <decompressed file> <compressed file> [alignment]\n", programName.c_str());
 		fprintf(stderr, "       %*s         (default alignment: 0x80)\n", (s32)programName.length(), "");
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s yaz0 r <compressed file> <decompressed file>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		std::vector<u8> outputBuffer;
-		r = yaz0::decompress(outputBuffer, fileContents);
-		if (r) return r;
+		HK_TRY(yaz0::decompress(outputBuffer, fileContents));
 
 		std::ofstream outfile(argv[4], std::ios::out | std::ios::binary);
 		outfile.write(reinterpret_cast<const char*>(outputBuffer.data()), outputBuffer.size());
@@ -181,14 +183,13 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 			fprintf(
 				stderr, "usage: %s yaz0 w <decompressed file> <compressed file> [alignment]\n", programName.c_str()
 			);
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		u32 alignment = argc > 5 ? atoi(argv[5]) : 0x80;
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		std::vector<u8> outputBuffer;
 		yaz0::compress(outputBuffer, fileContents, alignment);
@@ -196,48 +197,43 @@ result_t handle_yaz0(s32 argc, char* argv[]) {
 		util::writeFile(argv[4], outputBuffer);
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t handle_sarc(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_sarc(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s sarc r|read <archive> <output dir>\n", programName.c_str());
 		fprintf(stderr, "       %s sarc w|write <input dir> <output archive> [alignment]\n", programName.c_str());
 		fprintf(stderr, "       %*s         (default alignment: 0x80)\n", (s32)programName.length(), "");
 		fprintf(stderr, "       %s sarc l|list <archive>\n", programName.c_str());
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s sarc r|read <archive> <output dir>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		sarc::Reader sarc(fileContents);
-		r = sarc.init();
-		if (r) return r;
+		HK_TRY(sarc.init());
 
-		r = sarc.saveAll(argv[4]);
-		if (r) return r;
+		HK_TRY(sarc.saveAll(argv[4]));
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s sarc w|write <input dir> <output archive> [alignment]\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		fs::path inDir = argv[3];
 		if (!fs::is_directory(inDir)) {
-			return util::Error::DirNotFound;
+			return ResultDirNotFound();
 		}
 
 		u32 alignment = argc > 5 ? atoi(argv[5]) : 0x80;
@@ -251,8 +247,7 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 			if (entry.is_directory()) continue;
 
 			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, entryPath);
-			if (r) return r;
+			HK_TRY(util::readFile(fileContents, entryPath));
 
 			writer.addFile(relPath.string(), fileContents);
 		}
@@ -261,66 +256,58 @@ result_t handle_sarc(s32 argc, char* argv[]) {
 	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s sarc l|list <archive>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		sarc::Reader sarc(fileContents);
-		r = sarc.init();
-		if (r) return r;
+		HK_TRY(sarc.init());
 
 		for (const std::string& filename : sarc.getFilenames())
 			printf("%s\n", filename.c_str());
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t handle_szs(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_szs(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s szs r|read <archive> <output dir>\n", programName.c_str());
 		fprintf(stderr, "       %s szs w|write <input dir> <output archive>\n", programName.c_str());
 		fprintf(stderr, "       %s szs l|list <archive>\n", programName.c_str());
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s szs r|read <archive> <output dir>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		std::vector<u8> decompressed;
-		r = yaz0::decompress(decompressed, fileContents);
-		if (r) return r;
+		HK_TRY(yaz0::decompress(decompressed, fileContents));
 
 		sarc::Reader sarc(decompressed);
-		r = sarc.init();
-		if (r) return r;
+		HK_TRY(sarc.init());
 
-		r = sarc.saveAll(argv[4]);
-		if (r) return r;
+		HK_TRY(sarc.saveAll(argv[4]));
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s szs w|write <input dir> <output archive>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		fs::path inDir = argv[3];
 		if (!fs::is_directory(inDir)) {
-			return util::Error::DirNotFound;
+			return ResultDirNotFound();
 		}
 
 		sarc::Writer writer;
@@ -330,8 +317,7 @@ result_t handle_szs(s32 argc, char* argv[]) {
 			fs::path relPath = fs::relative(entryPath, inDir);
 
 			std::vector<u8> fileContents;
-			r = util::readFile(fileContents, entryPath);
-			if (r) return r;
+			HK_TRY(util::readFile(fileContents, entryPath));
 
 			writer.addFile(relPath.string(), fileContents);
 		}
@@ -346,111 +332,96 @@ result_t handle_szs(s32 argc, char* argv[]) {
 	} else if (util::isEqual(argv[2], "list") || util::isEqual(argv[2], "l")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s szs l|list <archive>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		std::vector<u8> decompressed;
-		r = yaz0::decompress(decompressed, fileContents);
-		if (r) return r;
+		HK_TRY(yaz0::decompress(decompressed, fileContents));
 
 		sarc::Reader sarc(decompressed);
-		r = sarc.init();
-		if (r) return r;
+		HK_TRY(sarc.init());
 
 		for (const std::string& filename : sarc.getFilenames())
 			printf("%s\n", filename.c_str());
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t handle_bffnt(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_bffnt(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s bffnt r <font file>\n", programName.c_str());
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s bffnt r <font file>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		BFFNT bffnt(fileContents);
-		r = bffnt.read();
-		if (r) return r;
+		HK_TRY(bffnt.read());
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t handle_bntx(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_bntx(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s bntx r <texture file>\n", programName.c_str());
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s bntx r <texture file>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		BNTX bntx(fileContents);
-		r = bntx.read();
-		if (r) return r;
+		HK_TRY(bntx.read());
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t handle_byml(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_byml(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s byml r <input file> [output json]\n", programName.c_str());
 		fprintf(stderr, "       %s byml w <output file>\n", programName.c_str());
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s byml r <input file> [output json]\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		byml::Reader byml;
-		r = byml.init(&fileContents[0]);
-		if (r) return r;
+		HK_TRY(byml.init(&fileContents[0]));
 
 		std::string out = print_byml(byml);
 
@@ -461,52 +432,47 @@ result_t handle_byml(s32 argc, char* argv[]) {
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s byml w <output file>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t handle_bfres(s32 argc, char* argv[]) {
-	result_t r;
-
+hk::Result handle_bfres(s32 argc, char* argv[]) {
 	if (argc < 3 || util::isEqual(argv[2], "--help")) {
 		fprintf(stderr, "usage: %s bfres r <input file>\n", programName.c_str());
 		fprintf(stderr, "       %s bfres w <input file>\n", programName.c_str());
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
 	if (util::isEqual(argv[2], "read") || util::isEqual(argv[2], "r")) {
 		if (argc < 5) {
 			fprintf(stderr, "usage: %s bfres r <input file> <output file>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 
 		std::vector<u8> fileContents;
-		r = util::readFile(fileContents, argv[3]);
-		if (r) return r;
+		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		bfres::Reader bfres(fileContents);
-		r = bfres.read();
-		if (r) return r;
+		HK_TRY(bfres.read());
 
-		r = bfres.exportGLTF(argv[4]);
-		if (r) return r;
+		HK_TRY(bfres.exportGLTF(argv[4]));
 	} else if (util::isEqual(argv[2], "write") || util::isEqual(argv[2], "w")) {
 		if (argc < 4) {
 			fprintf(stderr, "usage: %s bfres w <input file>\n", programName.c_str());
-			return Error::InvalidArgument;
+			return hk::ResultInvalidArgument();
 		}
 	} else {
 		fprintf(stderr, "error: unrecognized option '%s'\n", argv[2]);
-		return Error::InvalidArgument;
+		return hk::ResultInvalidArgument();
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
 s32 main(s32 argc, char* argv[]) {
@@ -519,7 +485,7 @@ s32 main(s32 argc, char* argv[]) {
 		return 1;
 	}
 
-	result_t r;
+	hk::Result r;
 
 	if (util::isEqual(argv[1], "yaz0"))
 		r = handle_yaz0(argc, argv);
@@ -542,9 +508,9 @@ s32 main(s32 argc, char* argv[]) {
 		return 1;
 	}
 
-	if (r == Error::InvalidArgument) return r;
+	if (r == hk::ResultInvalidArgument() || r == ResultUnimplementedVersion()) return 1;
 
-	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
+	if (r.failed()) fprintf(stderr, "error: %s\n", hk::diag::getResultName(r));
 
 	return 0;
 }

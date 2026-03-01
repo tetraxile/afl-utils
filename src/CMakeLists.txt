@@ -8,6 +8,7 @@ else()
 endif()
 
 include_directories(../lib/afl/include)
+include_directories(../lib/afl/lib/hk/include)
 include_directories(../lib)
 include_directories(.)
 

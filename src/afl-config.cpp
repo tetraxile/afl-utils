@@ -1,10 +1,8 @@
-#include <cassert>
 #include <cstdio>
-#include <cstdlib>
+#include <hk/types.h>
 #include <iostream>
 #include <string>
 
-#include "afl/types.h"
 #include "afl/util.h"
 #include "clipp/clipp.h"
 #include "config.h"

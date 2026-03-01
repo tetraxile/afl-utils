@@ -1,8 +1,9 @@
 #include <array>
-#include <cassert>
 #include <cstdio>
 #include <filesystem>
 #include <format>
+#include <hk/diag/diag.h>
+#include <hk/util/Math.h>
 #include <iostream>
 #include <map>
 #include <set>
@@ -12,11 +13,9 @@
 #include <vector>
 
 #include "afl/byml/reader.h"
-#include "afl/result.h"
+#include "afl/results.h"
 #include "afl/sarc/reader.h"
-#include "afl/types.h"
 #include "afl/util.h"
-#include "afl/vector.h"
 #include "afl/yaz0.h"
 #include "clipp/clipp.h"
 #include "config.h"
@@ -183,9 +182,9 @@ struct Result {
 	const std::string modelName;
 	const std::string paramConfigName;
 	const std::string objId;
-	const Vector3f trans;
-	const Vector3f rotate;
-	const Vector3f scale;
+	const hk::util::Vector3f trans;
+	const hk::util::Vector3f rotate;
+	const hk::util::Vector3f scale;
 
 	const Value queryValue;
 
@@ -212,8 +211,7 @@ bool Result::operator==(const Result& other) const {
 	// return std::hash<Result>{}(*this) == std::hash<Result>{}(other);
 	return util::isEqual(stageName, other.stageName) && util::isEqual(unitConfigName, other.unitConfigName) &&
 	       util::isEqual(paramConfigName, other.paramConfigName) && util::isEqual(modelName, other.modelName) &&
-	       util::isEqual(objId, other.objId) && trans.isEqual(other.trans) && scale.isEqual(other.scale) &&
-	       rotate.isEqual(other.rotate);
+	       util::isEqual(objId, other.objId) && trans == other.trans && scale == other.scale && rotate == other.rotate;
 }
 
 bool endsWith(const std::string& fullString, const std::string& ending) {
@@ -227,12 +225,12 @@ struct SearchEngine {
 	SearchEngine(const Game& game, const Query& query, bool isVerbose = false) :
 		mGame(game), mQuery(query), mIsVerbose(isVerbose) {}
 
-	result_t searchAllStages(const fs::path& romfsPath);
-	result_t searchBYML(const std::vector<u8> bymlContents);
-	result_t searchStage(const fs::path& stagePath);
-	result_t searchScenario(const byml::Reader& scenario);
-	result_t searchItem(const byml::Reader& item, std::string_view baseName = "", u32 level = 0);
-	result_t saveResults(const fs::path& outPath) const;
+	hk::Result searchAllStages(const fs::path& romfsPath);
+	hk::Result searchBYML(const std::vector<u8> bymlContents);
+	hk::Result searchStage(const fs::path& stagePath);
+	hk::Result searchScenario(const byml::Reader& scenario);
+	hk::Result searchItem(const byml::Reader& item, std::string_view baseName = "", u32 level = 0);
+	hk::Result saveResults(const fs::path& outPath) const;
 
 	const Game mGame;
 	const Query mQuery;
@@ -243,57 +241,43 @@ struct SearchEngine {
 	bool mIsVerbose;
 };
 
-result_t readVec3f(Vector3f* out, const byml::Reader& reader, const std::string& name) {
-	result_t r;
-
+hk::Result readVec3f(hk::util::Vector3f* out, const byml::Reader& reader, const std::string& name) {
 	byml::Reader vec;
-	r = reader.getContainerByKey(&vec, name);
-	if (r) return r;
+	HK_TRY(reader.getContainerByKey(&vec, name));
 
-	r = vec.getF32ByKey(&out->x, "X");
-	if (r) return r;
+	HK_TRY(vec.getF32ByKey(&out->x, "X"));
+	HK_TRY(vec.getF32ByKey(&out->y, "Y"));
+	HK_TRY(vec.getF32ByKey(&out->z, "Z"));
 
-	r = vec.getF32ByKey(&out->y, "Y");
-	if (r) return r;
-
-	r = vec.getF32ByKey(&out->z, "Z");
-	if (r) return r;
-
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t SearchEngine::searchItem(const byml::Reader& item, std::string_view baseName, u32 level) {
-	result_t r;
-
+hk::Result SearchEngine::searchItem(const byml::Reader& item, std::string_view baseName, u32 level) {
 	std::string unitConfigName;
-	r = item.getStringByKey(&unitConfigName, "UnitConfigName");
-	if (r) return r;
+	HK_TRY(item.getStringByKey(&unitConfigName, "UnitConfigName"));
 
 	if (level == 0) baseName = unitConfigName;
 
 	byml::Reader unitConfig;
-	r = item.getContainerByKey(&unitConfig, "UnitConfig");
-	if (r) return r;
+	HK_TRY(item.getContainerByKey(&unitConfig, "UnitConfig"));
 
 	std::string paramConfigName;
-	r = unitConfig.getStringByKey(&paramConfigName, "ParameterConfigName");
-	if (r) return r;
+	HK_TRY(unitConfig.getStringByKey(&paramConfigName, "ParameterConfigName"));
 
 	std::string modelName;
 	bool hasModelName = item.tryGetStringByKey(&modelName, "ModelName");
 
 	if (util::isEqual(unitConfigName, mQuery.name) || util::isEqual(paramConfigName, mQuery.name) ||
 	    (hasModelName && util::isEqual(modelName, mQuery.name))) {
-		Vector3f trans;
+		hk::util::Vector3f trans;
 		readVec3f(&trans, item, "Translate");
-		Vector3f rotate;
+		hk::util::Vector3f rotate;
 		readVec3f(&rotate, item, "Rotate");
-		Vector3f scale;
+		hk::util::Vector3f scale;
 		readVec3f(&scale, item, "Scale");
 
 		std::string objId;
-		r = item.getStringByKey(&objId, "Id");
-		if (r) return r;
+		HK_TRY(item.getStringByKey(&objId, "Id"));
 
 		std::string optModelName = hasModelName ? modelName : "";
 		std::array<bool, 15> scenarioFlag = { false };
@@ -322,36 +306,30 @@ result_t SearchEngine::searchItem(const byml::Reader& item, std::string_view bas
 			              .queryValue = queryValue };
 		mResults.push_back(result);
 
-		return 0;
+		return hk::ResultSuccess();
 	}
 
 	if (mQuery.isRecurse) {
 		byml::Reader linkGroups;
-		r = item.getContainerByKey(&linkGroups, "Links");
-		if (r) return r;
+		HK_TRY(item.getContainerByKey(&linkGroups, "Links"));
 
 		for (u32 groupIdx = 0; groupIdx < linkGroups.getSize(); groupIdx++) {
 			byml::Reader group;
-			r = linkGroups.getContainerByIdx(&group, groupIdx);
-			if (r) return r;
+			HK_TRY(linkGroups.getContainerByIdx(&group, groupIdx));
 
 			for (u32 linkIdx = 0; linkIdx < group.getSize(); linkIdx++) {
 				byml::Reader item;
-				r = group.getContainerByIdx(&item, linkIdx);
-				if (r) return r;
+				HK_TRY(group.getContainerByIdx(&item, linkIdx));
 
-				r = searchItem(item, baseName, level + 1);
-				if (r) return r;
+				HK_TRY(searchItem(item, baseName, level + 1));
 			}
 		}
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
-	result_t r;
-
+hk::Result SearchEngine::searchScenario(const byml::Reader& scenario) {
 	for (u32 listIdx = 0; listIdx < scenario.getSize(); listIdx++) {
 		std::string listName = scenario.getKeyByIdx(listIdx);
 		mCurItemList = listName;
@@ -365,22 +343,18 @@ result_t SearchEngine::searchScenario(const byml::Reader& scenario) {
 			byml::Reader item;
 			itemList.getContainerByIdx(&item, itemIdx);
 
-			r = searchItem(item);
-			if (r) return r;
+			HK_TRY(searchItem(item));
 		}
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
-	result_t r;
-
+hk::Result SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 	byml::Reader reader;
-	r = reader.init(&bymlContents[0]);
-	if (r) return r;
+	HK_TRY(reader.init(&bymlContents[0]));
 
-	if (!reader.isExistStringValue(mQuery.name)) return 0;
+	if (!reader.isExistStringValue(mQuery.name)) return hk::ResultSuccess();
 
 	if (mIsVerbose) {
 		printf("%s - found string\n", mCurStageName.c_str());
@@ -393,51 +367,41 @@ result_t SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 			byml::Reader scenario;
 			reader.getContainerByIdx(&scenario, scenarioIdx);
 
-			r = searchScenario(scenario);
-			if (r) return r;
+			HK_TRY(searchScenario(scenario));
 		}
 	} else if (mGame == Game::SM3DW) {
 		searchScenario(reader);
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t SearchEngine::searchStage(const fs::path& stagePath) {
-	result_t r;
-
+hk::Result SearchEngine::searchStage(const fs::path& stagePath) {
 	std::string stageName = stagePath.filename().stem().string();
 
 	if (mGame == Game::SMO) {
 		std::vector<u8> szsContents;
-		r = util::readFile(szsContents, stagePath);
-		if (r) return r;
+		HK_TRY(util::readFile(szsContents, stagePath));
 
 		std::vector<u8> sarcContents;
-		r = yaz0::decompress(sarcContents, szsContents);
-		if (r) return r;
+		HK_TRY(yaz0::decompress(sarcContents, szsContents));
 
 		sarc::Reader sarc(sarcContents);
-		r = sarc.init();
-		if (r) return r;
+		HK_TRY(sarc.init());
 
 		std::vector<u8> bymlContents;
-		r = sarc.getFileData(bymlContents, stageName + ".byml");
-		if (r) return r;
+		HK_TRY(sarc.getFileData(bymlContents, stageName + ".byml"));
 
 		searchBYML(bymlContents);
 	} else if (mGame == Game::SM3DW) {
 		std::vector<u8> szsContents;
-		r = util::readFile(szsContents, stagePath);
-		if (r) return r;
+		HK_TRY(util::readFile(szsContents, stagePath));
 
 		std::vector<u8> sarcContents;
-		r = yaz0::decompress(sarcContents, szsContents);
-		if (r) return r;
+		HK_TRY(yaz0::decompress(sarcContents, szsContents));
 
 		sarc::Reader sarc(sarcContents);
-		r = sarc.init();
-		if (r) return r;
+		HK_TRY(sarc.init());
 
 		const std::array<std::string, 3> suffixes = { "Map", "Design", "Sound" };
 		const auto& filenames = sarc.getFilenames();
@@ -447,21 +411,18 @@ result_t SearchEngine::searchStage(const fs::path& stagePath) {
 			if (!filenames.contains(bymlName)) continue;
 
 			std::vector<u8> bymlContents;
-			r = sarc.getFileData(bymlContents, bymlName);
-			if (r) return r;
+			HK_TRY(sarc.getFileData(bymlContents, bymlName));
 
 			searchBYML(bymlContents);
 		}
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
-	result_t r;
-
+hk::Result SearchEngine::searchAllStages(const fs::path& romfsPath) {
 	const fs::path stageDataPath = romfsPath / "StageData";
-	if (!fs::is_directory(stageDataPath)) return util::Error::DirNotFound;
+	if (!fs::is_directory(stageDataPath)) return ResultDirNotFound();
 
 	printf("searching...\n");
 
@@ -474,24 +435,23 @@ result_t SearchEngine::searchAllStages(const fs::path& romfsPath) {
 		std::string stageName = stagePath.filename().stem().string();
 		mCurStageName = stageName;
 
-		r = searchStage(stagePath);
-		if (r) return r;
+		HK_TRY(searchStage(stagePath));
 	}
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
-result_t SearchEngine::saveResults(const fs::path& outPath) const {
+hk::Result SearchEngine::saveResults(const fs::path& outPath) const {
 	if (mResults.size() == 0) {
 		printf("found no matches\n");
-		return 0;
+		return hk::ResultSuccess();
 	}
 
 	FILE* f = fopen(outPath.string().c_str(), "w");
 
 	if (!f) {
 		fprintf(stderr, "error: could not create file %s\n", outPath.string().c_str());
-		return util::Error::FileError;
+		return ResultFileError();
 	}
 
 	if (mGame == Game::SMO) {
@@ -585,7 +545,7 @@ result_t SearchEngine::saveResults(const fs::path& outPath) const {
 
 	printf("saved results to %s\n", outPath.string().c_str());
 
-	return 0;
+	return hk::ResultSuccess();
 }
 
 s32 main(s32 argc, char** argv) {
@@ -640,7 +600,7 @@ s32 main(s32 argc, char** argv) {
 	else if (util::isEqual(gameName, "3dw"))
 		game = Game::SM3DW;
 	else {
-		fprintf(stderr, "error: invalid game name (expected \"smo\" or \"3dw\")");
+		fprintf(stderr, "error: invalid game name (got: \"%s\", expected \"smo\" or \"3dw\")\n", gameName.c_str());
 		return 1;
 	}
 
@@ -664,15 +624,15 @@ s32 main(s32 argc, char** argv) {
 
 	SearchEngine engine(game, query, isVerbose);
 
-	result_t r = engine.searchAllStages(romfsPath);
+	hk::Result r = engine.searchAllStages(romfsPath);
 
-	if (r) fprintf(stderr, "error %x: %s\n", r, resultToString(r));
+	if (r.succeeded()) r = engine.saveResults(outPath);
 
-	r = engine.saveResults(outPath);
+	if (r.failed()) fprintf(stderr, "error: %s\n", hk::diag::getResultName(r));
 
 #ifdef _WIN32
 	if (!isatty_win()) system("pause");
 #endif
 
-	if (r == util::Error::FileError) return 1;
+	if (r.failed()) return 1;
 }
