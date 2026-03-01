@@ -22,9 +22,9 @@ jobs:
         with:
           name: linux-build
           path: |
-            build/afl-search
-            build/afl-utils
-            build/afl-config
+            build/src/afl-search
+            build/src/afl-utils
+            build/src/afl-config
   
   build-windows:
     runs-on: windows-2025
