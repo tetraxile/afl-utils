@@ -16,6 +16,9 @@ add_executable(afl-utils)
 add_executable(afl-search)
 add_executable(afl-config)
 
+find_library(ZSTD_LIBRARY NAMES zstd lzstd libzstd)
+target_link_libraries(afl-utils PRIVATE ${ZSTD_LIBRARY})
+
 target_sources(afl-utils
     PRIVATE
         afl-utils.cpp

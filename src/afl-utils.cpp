@@ -2,8 +2,10 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <hk/ValueOrResult.h>
 #include <hk/diag/diag.h>
 #include <iostream>
+#include <zstd/zstd.h>
 
 #include "afl/bffnt.h"
 #include "afl/bfres/reader.h"
@@ -20,140 +22,184 @@ namespace fs = std::filesystem;
 
 std::string programName;
 
-std::string print_byml(const byml::Reader& node, s32 level = 0) {
+hk::Result print_byml(std::string& out, const byml::Reader& node, s32 level = 0) {
 	std::string indent(level, '\t');
-	std::string out;
 
-	if (node.getType() == byml::NodeType::Array) {
-		out += "[\n";
+	if (HK_TRY(node.getType()) == byml::NodeType::Array) {
+		out += "[";
 		for (u32 i = 0; i < node.getSize(); i++) {
-			byml::NodeType childType;
-			node.getTypeByIdx(&childType, i);
+			out += "\n";
+			byml::NodeType childType = HK_TRY(node.getTypeByIdx(i));
 			out += "\t";
-			if (childType == byml::NodeType::Hash) {
+
+			switch (childType) {
+			case byml::NodeType::Array: {
 				byml::Reader container;
-				node.getContainerByIdx(&container, i);
+				HK_TRY(node.getContainerByIdx(&container, i));
 				out += indent;
-				out += print_byml(container, level + 1);
-			} else if (childType == byml::NodeType::Array) {
+				HK_TRY(print_byml(out, container, level + 1));
+				break;
+			}
+			case byml::NodeType::Hash: {
 				byml::Reader container;
-				node.getContainerByIdx(&container, i);
+				HK_TRY(node.getContainerByIdx(&container, i));
 				out += indent;
-				out += print_byml(container, level + 1);
-			} else if (childType == byml::NodeType::String) {
+				HK_TRY(print_byml(out, container, level + 1));
+				break;
+			}
+			case byml::NodeType::String: {
 				std::string str;
-				node.getStringByIdx(&str, i);
+				HK_TRY(node.getStringByIdx(&str, i));
 				out += std::format("{}\"{}\"", indent, str);
-			} else if (childType == byml::NodeType::Bool) {
+				break;
+			}
+			case byml::NodeType::Bool: {
 				bool value;
-				node.getBoolByIdx(&value, i);
+				HK_TRY(node.getBoolByIdx(&value, i));
 				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::S32) {
+				break;
+			}
+			case byml::NodeType::S32: {
 				s32 value;
-				node.getS32ByIdx(&value, i);
+				HK_TRY(node.getS32ByIdx(&value, i));
 				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::U32) {
-				u32 value;
-				node.getU32ByIdx(&value, i);
-				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::F32) {
+				break;
+			}
+			case byml::NodeType::F32: {
 				f32 value;
-				node.getF32ByIdx(&value, i);
+				HK_TRY(node.getF32ByIdx(&value, i));
 				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::S64) {
+				break;
+			}
+			case byml::NodeType::U32: {
+				u32 value;
+				HK_TRY(node.getU32ByIdx(&value, i));
+				out += std::format("{}{}", indent, value);
+				break;
+			}
+			case byml::NodeType::S64: {
 				s64 value;
-				node.getS64ByIdx(&value, i);
+				HK_TRY(node.getS64ByIdx(&value, i));
 				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::U64) {
+				break;
+			}
+			case byml::NodeType::U64: {
 				u64 value;
-				node.getU64ByIdx(&value, i);
+				HK_TRY(node.getU64ByIdx(&value, i));
 				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::F64) {
+				break;
+			}
+			case byml::NodeType::F64: {
 				f64 value;
-				node.getF64ByIdx(&value, i);
+				HK_TRY(node.getF64ByIdx(&value, i));
 				out += std::format("{}{}", indent, value);
-			} else if (childType == byml::NodeType::Bool) {
-				bool value;
-				node.getBoolByIdx(&value, i);
-				out += std::format("{}{}", indent, value ? "true" : "false");
-			} else if (childType == byml::NodeType::Null) {
+				break;
+			}
+			case byml::NodeType::Null: {
 				out += std::format("{}null", indent);
-			} else {
-				fprintf(stderr, "error: node type %02x\n", (u8)childType);
 				break;
 			}
+			case byml::NodeType::StringTable: {
+				fprintf(stderr, "error: string table node can't be in tree\n");
+				return byml::ResultInvalidNodeType();
+			}
+			}
+
 			if (i != node.getSize() - 1)
-				out += ",\n";
+				out += ",";
 			else
-				out += "\n";
+				out += std::format("\n{}", indent);
 		}
-		out += std::format("{}]", indent);
-	} else if (node.getType() == byml::NodeType::Hash) {
-		out += "{\n";
+		out += "]";
+	} else if (HK_TRY(node.getType()) == byml::NodeType::Hash) {
+		out += "{";
 		for (u32 i = 0; i < node.getSize(); i++) {
-			byml::NodeType childType;
-			node.getTypeByIdx(&childType, i);
-			std::string key = node.getKeyByIdx(i);
+			out += "\n";
+			byml::NodeType childType = HK_TRY(node.getTypeByIdx(i));
+			std::string key;
+			HK_TRY(node.getKeyByIdx(&key, i));
 			out += std::format("\t{}\"{}\": ", indent, key);
-			if (childType == byml::NodeType::Hash) {
+
+			switch (childType) {
+			case byml::NodeType::Array: {
 				byml::Reader container;
-				node.getContainerByIdx(&container, i);
-				out += print_byml(container, level + 1);
-			} else if (childType == byml::NodeType::Array) {
-				byml::Reader container;
-				node.getContainerByIdx(&container, i);
-				out += print_byml(container, level + 1);
-			} else if (childType == byml::NodeType::String) {
-				std::string str;
-				node.getStringByIdx(&str, i);
-				out += std::format("\"{}\"", str);
-			} else if (childType == byml::NodeType::Bool) {
-				bool value;
-				node.getBoolByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::S32) {
-				s32 value;
-				node.getS32ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::U32) {
-				u32 value;
-				node.getU32ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::F32) {
-				f32 value;
-				node.getF32ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::S64) {
-				s64 value;
-				node.getS64ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::U64) {
-				u64 value;
-				node.getU64ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::F64) {
-				f64 value;
-				node.getF64ByIdx(&value, i);
-				out += std::format("{}", value);
-			} else if (childType == byml::NodeType::Bool) {
-				bool value;
-				node.getBoolByIdx(&value, i);
-				out += value ? "true" : "false";
-			} else if (childType == byml::NodeType::Null) {
-				out += "null";
-			} else {
-				fprintf(stderr, "error: node type %02x\n", (u8)childType);
+				HK_TRY(node.getContainerByIdx(&container, i));
+				HK_TRY(print_byml(out, container, level + 1));
 				break;
 			}
+			case byml::NodeType::Hash: {
+				byml::Reader container;
+				HK_TRY(node.getContainerByIdx(&container, i));
+				HK_TRY(print_byml(out, container, level + 1));
+				break;
+			}
+			case byml::NodeType::String: {
+				std::string str;
+				HK_TRY(node.getStringByIdx(&str, i));
+				out += std::format("\"{}\"", str);
+				break;
+			}
+			case byml::NodeType::Bool: {
+				bool value;
+				HK_TRY(node.getBoolByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::S32: {
+				s32 value;
+				HK_TRY(node.getS32ByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::F32: {
+				f32 value;
+				HK_TRY(node.getF32ByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::U32: {
+				u32 value;
+				HK_TRY(node.getU32ByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::S64: {
+				s64 value;
+				HK_TRY(node.getS64ByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::U64: {
+				u64 value;
+				HK_TRY(node.getU64ByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::F64: {
+				f64 value;
+				HK_TRY(node.getF64ByIdx(&value, i));
+				out += std::format("{}", value);
+				break;
+			}
+			case byml::NodeType::Null: {
+				out += "null";
+				break;
+			}
+			case byml::NodeType::StringTable: {
+				fprintf(stderr, "error: string table node can't be in tree\n");
+				return byml::ResultInvalidNodeType();
+			}
+			}
+
 			if (i != node.getSize() - 1)
-				out += ",\n";
+				out += ",";
 			else
-				out += "\n";
+				out += std::format("\n{}", indent);
 		}
-		out += std::format("{}}}", indent);
+		out += "}";
 	}
 
-	return out;
+	return hk::ResultSuccess();
 }
 
 hk::Result handle_yaz0(s32 argc, char* argv[]) {
@@ -218,9 +264,20 @@ hk::Result handle_sarc(s32 argc, char* argv[]) {
 			return hk::ResultInvalidArgument();
 		}
 
-		std::vector<u8> fileContents;
-		HK_TRY(util::readFile(fileContents, argv[3]));
+		std::string archiveName = argv[3];
 
+		std::vector<u8> fileContents;
+		if (archiveName.find(".zs") != std::string::npos) {
+			std::vector<u8> compressedContents;
+			HK_TRY(util::readFile(compressedContents, archiveName));
+			u64 decompSize = ZSTD_getFrameContentSize(compressedContents.data(), compressedContents.size());
+			fileContents.resize(decompSize);
+			ZSTD_decompress(
+				fileContents.data(), fileContents.size(), compressedContents.data(), compressedContents.size()
+			);
+		} else {
+			HK_TRY(util::readFile(fileContents, archiveName));
+		}
 		sarc::Reader sarc(fileContents);
 		HK_TRY(sarc.init());
 
@@ -421,9 +478,10 @@ hk::Result handle_byml(s32 argc, char* argv[]) {
 		HK_TRY(util::readFile(fileContents, argv[3]));
 
 		byml::Reader byml;
-		HK_TRY(byml.init(&fileContents[0]));
+		HK_TRY(byml.init(fileContents.data(), fileContents.size()));
 
-		std::string out = print_byml(byml);
+		std::string out;
+		HK_TRY(print_byml(out, byml));
 
 		if (argc < 5)
 			printf("%s\n", out.c_str());
