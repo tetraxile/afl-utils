@@ -10,12 +10,12 @@
 
 const fs::path getConfigPath() {
 	const char* xdgConfDir = getenv("XDG_CONFIG_HOME");
-	if (xdgConfDir) return fs::path(xdgConfDir) / "afl-utils" / "config.ini";
+	if (xdgConfDir) return fs::path(xdgConfDir) / "mizuna-utils" / "config.ini";
 
 	const char* homeDir;
 	if (!(homeDir = getenv("HOME"))) homeDir = getpwuid(getuid())->pw_dir;
 
-	return fs::path(homeDir) / ".config" / "afl-utils" / "config.ini";
+	return fs::path(homeDir) / ".config" / "mizuna-utils" / "config.ini";
 }
 
 #elif _WIN32
@@ -26,7 +26,7 @@ const fs::path getConfigPath() {
 	size_t sz = 0;
 	fs::path out = "";
 	if (_dupenv_s(&buf, &sz, "APPDATA") == 0 && buf != nullptr) {
-		out = fs::path(buf) / "afl-utils" / "config.ini";
+		out = fs::path(buf) / "mizuna-utils" / "config.ini";
 		free(buf);
 	}
 

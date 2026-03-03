@@ -99,52 +99,60 @@ struct Value {
 	hk::Result setByKey(const byml::Reader& container, const std::string& key) {
 		byml::NodeType queryType = HK_TRY(container.getTypeByKey(key));
 
-		std::string valString;
-		bool valBool;
-		u32 valU32;
-		s32 valS32;
-		f32 valF32;
-		u64 valU64;
-		s64 valS64;
-		f64 valF64;
-
 		switch (queryType) {
-		case byml::NodeType::String:
+		case byml::NodeType::String: {
+			std::string valString;
 			HK_TRY(container.getStringByKey(&valString, key));
 			setString(valString);
 			break;
-		case byml::NodeType::Bool:
+		}
+		case byml::NodeType::Bool: {
+			bool valBool;
 			HK_TRY(container.getBoolByKey(&valBool, key));
 			setBool(valBool);
 			break;
-		case byml::NodeType::U32:
+		}
+		case byml::NodeType::U32: {
+			u32 valU32;
 			HK_TRY(container.getU32ByKey(&valU32, key));
 			setU32(valU32);
 			break;
-		case byml::NodeType::S32:
+		}
+		case byml::NodeType::S32: {
+			s32 valS32;
 			HK_TRY(container.getS32ByKey(&valS32, key));
 			setS32(valS32);
 			break;
-		case byml::NodeType::F32:
+		}
+		case byml::NodeType::F32: {
+			f32 valF32;
 			HK_TRY(container.getF32ByKey(&valF32, key));
 			setF32(valF32);
 			break;
-		case byml::NodeType::U64:
+		}
+		case byml::NodeType::U64: {
+			u64 valU64;
 			HK_TRY(container.getU64ByKey(&valU64, key));
 			setU64(valU64);
 			break;
-		case byml::NodeType::S64:
+		}
+		case byml::NodeType::S64: {
+			s64 valS64;
 			HK_TRY(container.getS64ByKey(&valS64, key));
 			setS64(valS64);
 			break;
-		case byml::NodeType::F64:
+		}
+		case byml::NodeType::F64: {
+			f64 valF64;
 			HK_TRY(container.getF64ByKey(&valF64, key));
 			setF64(valF64);
 			break;
+		}
 
 		case byml::NodeType::Array:
 		case byml::NodeType::Hash:
 		case byml::NodeType::StringTable:
+		case byml::NodeType::Binary:
 		case byml::NodeType::Null: setNull(); break;
 		}
 

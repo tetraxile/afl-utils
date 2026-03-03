@@ -59,7 +59,7 @@ hk::Result readVec3f(hk::util::Vector3f* out, const byml::Reader& reader, const 
 
 hk::Result SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 	byml::Reader reader;
-	HK_TRY(reader.init(&bymlContents[0]));
+	HK_TRY(reader.init(bymlContents.data(), bymlContents.size()));
 
 	byml::Reader defaultTickets, startTickets, tickets;
 
@@ -69,7 +69,7 @@ hk::Result SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 	printf("\tdefault tickets: %d\n", defaultTickets.getSize());
 	for (u32 i = 0; i < defaultTickets.getSize(); i++) {
 		byml::Reader* ticket = new byml::Reader;
-		defaultTickets.getContainerByIdx(ticket, i);
+		HK_TRY(defaultTickets.getContainerByIdx(ticket, i));
 		ticketArr.push_back(ticket);
 	}
 
@@ -78,7 +78,7 @@ hk::Result SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 		printf("\tstart tickets: %d\n", startTickets.getSize());
 		for (u32 i = 0; i < startTickets.getSize(); i++) {
 			byml::Reader* ticket = new byml::Reader;
-			startTickets.getContainerByIdx(ticket, i);
+			HK_TRY(startTickets.getContainerByIdx(ticket, i));
 			ticketArr.push_back(ticket);
 		}
 	}
@@ -88,7 +88,7 @@ hk::Result SearchEngine::searchBYML(const std::vector<u8> bymlContents) {
 		printf("\ttickets: %d\n", tickets.getSize());
 		for (u32 i = 0; i < tickets.getSize(); i++) {
 			byml::Reader* ticket = new byml::Reader;
-			tickets.getContainerByIdx(ticket, i);
+			HK_TRY(tickets.getContainerByIdx(ticket, i));
 			ticketArr.push_back(ticket);
 		}
 	}

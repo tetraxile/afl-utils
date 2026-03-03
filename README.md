@@ -1,10 +1,10 @@
-# afl-utils
+# mizuna-utils
 
 this repository contains various scripts for interacting with some ActionLibrary games (e.g. SMO, SM3DW).
 
 ## Building
 
-There is a workflow that uploads automatic builds [here](https://github.com/tetraxile/afl-utils/actions/workflows/build.yml) after every commit.
+There is a workflow that uploads automatic builds [here](https://github.com/tetraxile/mizuna-utils/actions/workflows/build.yml) after every commit.
 
 ### Linux
 
@@ -23,10 +23,10 @@ There is a workflow that uploads automatic builds [here](https://github.com/tetr
 
 ## Usage
 
-### afl-search
+### al-search
 
 ```
-usage: ./afl-search [game] [options...]
+usage: ./al-search [game] [options...]
 
 options:
 	-r, --romfs    path to game's romfs
@@ -40,22 +40,22 @@ this script searches through all of a game's stages for an object that matches t
 
 `object name` matches a `UnitConfigName`, `ModelName`, or `ParameterConfigName`.
 
-### afl-utils
+### mizuna-utils
 
 ```
-usage: ./afl-utils <format> <option>
+usage: ./mizuna-utils <format> <option>
 	formats: yaz0, sarc, szs, bffnt, bntx, byml, bfres
 	options: read, r, write, w
 ```
 
 various readers/writers for different file formats. some of these don't do much
 
-### afl-config
+### al-config
 
 ```
-usage: ./afl-config <subcommand> <args...>
+usage: ./al-config <subcommand> <args...>
 
-./afl-config romfs <game> <romfs path>
+./al-config romfs <game> <romfs path>
 ```
 
 set config options for the other scripts to use

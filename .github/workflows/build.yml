@@ -22,9 +22,9 @@ jobs:
         with:
           name: linux-build
           path: |
-            build/src/afl-search
-            build/src/afl-utils
-            build/src/afl-config
+            build/src/al-search
+            build/src/mizuna-utils
+            build/src/al-config
   
   build-windows:
     runs-on: windows-2025
@@ -44,6 +44,6 @@ jobs:
         with:
           name: win-build
           path: |
-            build/Release/afl-search.exe
-            build/Release/afl-utils.exe
-            build/Release/afl-config.exe
+            build/Release/al-search.exe
+            build/Release/mizuna-utils.exe
+            build/Release/al-config.exe

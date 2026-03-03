@@ -53,6 +53,12 @@ hk::Result print_byml(std::string& out, const byml::Reader& node, s32 level = 0)
 				out += std::format("{}\"{}\"", indent, str);
 				break;
 			}
+			case byml::NodeType::Binary: {
+				std::vector<u8> value;
+				HK_TRY(node.getBinaryByIdx(&value, i));
+				// out += ;
+				break;
+			}
 			case byml::NodeType::Bool: {
 				bool value;
 				HK_TRY(node.getBoolByIdx(&value, i));
@@ -137,6 +143,12 @@ hk::Result print_byml(std::string& out, const byml::Reader& node, s32 level = 0)
 				std::string str;
 				HK_TRY(node.getStringByIdx(&str, i));
 				out += std::format("\"{}\"", str);
+				break;
+			}
+			case byml::NodeType::Binary: {
+				std::vector<u8> value;
+				HK_TRY(node.getBinaryByIdx(&value, i));
+				// out += ;
 				break;
 			}
 			case byml::NodeType::Bool: {

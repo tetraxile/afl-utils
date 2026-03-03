@@ -12,30 +12,30 @@ include_directories(../lib/mizuna/lib/hk/include)
 include_directories(../lib)
 include_directories(.)
 
-add_executable(afl-utils)
-add_executable(afl-search)
-add_executable(afl-config)
+add_executable(mizuna-utils)
+add_executable(al-search)
+add_executable(al-config)
 
 find_library(ZSTD_LIBRARY NAMES zstd lzstd libzstd)
-target_link_libraries(afl-utils PRIVATE ${ZSTD_LIBRARY})
+target_link_libraries(mizuna-utils PRIVATE ${ZSTD_LIBRARY})
 
-target_sources(afl-utils
+target_sources(mizuna-utils
     PRIVATE
-        afl-utils.cpp
+        mizuna-utils.cpp
 )
 
-target_sources(afl-search
+target_sources(al-search
     PRIVATE
-        afl-search.cpp
+        al-search.cpp
         config.cpp
 )
 
-target_sources(afl-config
+target_sources(al-config
     PRIVATE
-        afl-config.cpp
+        al-config.cpp
         config.cpp
 )
 
-target_link_libraries(afl-utils PRIVATE mizuna)
-target_link_libraries(afl-search PRIVATE mizuna)
-target_link_libraries(afl-config PRIVATE mizuna)
+target_link_libraries(mizuna-utils PRIVATE mizuna)
+target_link_libraries(al-search PRIVATE mizuna)
+target_link_libraries(al-config PRIVATE mizuna)
