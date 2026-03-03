@@ -6,14 +6,14 @@
 #include <string>
 #include <vector>
 
-#include "afl/byml/reader.h"
-#include "afl/results.h"
-#include "afl/sarc/reader.h"
-#include "afl/util.h"
-#include "afl/yaz0.h"
 #include "clipp/clipp.h"
 #include "config.h"
 #include "mini/ini.h"
+#include "mizuna/byml/reader.h"
+#include "mizuna/results.h"
+#include "mizuna/sarc/reader.h"
+#include "mizuna/util.h"
+#include "mizuna/yaz0.h"
 
 namespace fs = std::filesystem;
 

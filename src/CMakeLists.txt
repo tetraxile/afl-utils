@@ -7,8 +7,8 @@ else()
     message(FATAL_ERROR "Compiling with MSVC is not supported")
 endif()
 
-include_directories(../lib/afl/include)
-include_directories(../lib/afl/lib/hk/include)
+include_directories(../lib/mizuna/include)
+include_directories(../lib/mizuna/lib/hk/include)
 include_directories(../lib)
 include_directories(.)
 
@@ -36,6 +36,6 @@ target_sources(afl-config
         config.cpp
 )
 
-target_link_libraries(afl-utils PRIVATE afl)
-target_link_libraries(afl-search PRIVATE afl)
-target_link_libraries(afl-config PRIVATE afl)
+target_link_libraries(afl-utils PRIVATE mizuna)
+target_link_libraries(afl-search PRIVATE mizuna)
+target_link_libraries(afl-config PRIVATE mizuna)

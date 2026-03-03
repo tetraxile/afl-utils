@@ -3,10 +3,10 @@
 #include <iostream>
 #include <string>
 
-#include "afl/util.h"
 #include "clipp/clipp.h"
 #include "config.h"
 #include "mini/ini.h"
+#include "mizuna/util.h"
 
 s32 main(s32 argc, char** argv) {
 	using namespace clipp;

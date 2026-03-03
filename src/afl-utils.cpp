@@ -7,16 +7,16 @@
 #include <iostream>
 #include <zstd/zstd.h>
 
-#include "afl/bffnt.h"
-#include "afl/bfres/reader.h"
-#include "afl/bntx.h"
-#include "afl/byml/reader.h"
-#include "afl/byml/writer.h"
-#include "afl/results.h"
-#include "afl/sarc/reader.h"
-#include "afl/sarc/writer.h"
-#include "afl/util.h"
-#include "afl/yaz0.h"
+#include "mizuna/bffnt.h"
+#include "mizuna/bfres/reader.h"
+#include "mizuna/bntx.h"
+#include "mizuna/byml/reader.h"
+#include "mizuna/byml/writer.h"
+#include "mizuna/results.h"
+#include "mizuna/sarc/reader.h"
+#include "mizuna/sarc/writer.h"
+#include "mizuna/util.h"
+#include "mizuna/yaz0.h"
 
 namespace fs = std::filesystem;
 
